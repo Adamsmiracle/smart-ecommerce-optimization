@@ -1,0 +1,349 @@
+# Smart E-Commerce GraphQL Schema
+# Defines types, queries, and mutations for the e-commerce API
+
+
+scalar UUID
+scalar BigDecimal
+scalar OffsetDateTime
+
+# ============================================================================
+# TYPES
+# ============================================================================
+
+type User {
+    id: UUID!
+    emailAddress: String!
+    firstName: String
+    lastName: String
+    fullName: String
+    phoneNumber: String
+    isActive: Boolean!
+    createdAt: OffsetDateTime
+    updatedAt: OffsetDateTime
+    role: String
+}
+
+type Product {
+    id: UUID!
+    categoryId: UUID!
+    name: String!
+    description: String
+    price: BigDecimal!
+    stockQuantity: Int!
+    isActive: Boolean!
+    images: [String]
+    createdAt: OffsetDateTime
+    updatedAt: OffsetDateTime
+}
+
+type Category {
+    id: UUID!
+    categoryName: String!
+}
+
+type CartItem {
+    id: UUID!
+    cartId: UUID!
+    productId: UUID!
+    quantity: Int!
+}
+
+type Cart {
+    id: UUID!
+    userId: UUID!
+    createdAt: OffsetDateTime
+}
+
+type OrderItem {
+    id: UUID!
+    orderId: UUID!
+    productId: UUID!
+    unitPrice: BigDecimal!
+    quantity: Int!
+}
+
+type Order {
+    id: UUID!
+    userId: UUID!
+    orderNumber: String!
+    status: String!
+    paymentMethodId: UUID
+    shippingMethodId: UUID
+    paymentStatus: String
+    subtotal: BigDecimal!
+    total: BigDecimal!
+    createdAt: OffsetDateTime
+    cancelledAt: OffsetDateTime
+}
+
+type Review {
+    id: UUID!
+    userId: UUID!
+    productId: UUID!
+    rating: Int!
+    comment: String
+    createdAt: OffsetDateTime
+    updatedAt: OffsetDateTime
+}
+
+type Address {
+    id: UUID!
+    userId: UUID!
+    addressLine: String
+    city: String!
+    region: String
+    country: String!
+    postalCode: String
+    addressType: String
+    createdAt: OffsetDateTime
+}
+
+# ============================================================================
+# PAGINATION TYPES (Updated to match PageResponse structure)
+# ============================================================================
+
+type UserPage {
+    content: [User]!
+    pageNumber: Int!
+    pageSize: Int!
+    totalElements: Int!
+    totalPages: Int!
+    first: Boolean!
+    last: Boolean!
+    hasNext: Boolean!
+    hasPrevious: Boolean!
+}
+
+type ProductPage {
+    content: [Product]!
+    pageNumber: Int!
+    pageSize: Int!
+    totalElements: Int!
+    totalPages: Int!
+    first: Boolean!
+    last: Boolean!
+    hasNext: Boolean!
+    hasPrevious: Boolean!
+}
+
+type OrderPage {
+    content: [Order]!
+    pageNumber: Int!
+    pageSize: Int!
+    totalElements: Int!
+    totalPages: Int!
+    first: Boolean!
+    last: Boolean!
+    hasNext: Boolean!
+    hasPrevious: Boolean!
+}
+
+type ReviewPage {
+    content: [Review]!
+    pageNumber: Int!
+    pageSize: Int!
+    totalElements: Int!
+    totalPages: Int!
+    first: Boolean!
+    last: Boolean!
+    hasNext: Boolean!
+    hasPrevious: Boolean!
+}
+
+# ============================================================================
+# INPUT TYPES
+# ============================================================================
+
+input CreateUserInput {
+    emailAddress: String!
+    firstName: String
+    lastName: String
+    phoneNumber: String
+    password: String!
+    role: String
+}
+
+input UpdateUserInput {
+    emailAddress: String
+    firstName: String
+    lastName: String
+    phoneNumber: String
+    password: String
+    role: String
+}
+
+input CreateProductInput {
+    categoryId: UUID!
+    name: String!
+    description: String
+    price: BigDecimal!
+    stockQuantity: Int
+    isActive: Boolean
+    images: [String]
+}
+
+input UpdateProductInput {
+    categoryId: UUID
+    name: String
+    description: String
+    price: BigDecimal
+    stockQuantity: Int
+    isActive: Boolean
+    images: [String]
+}
+
+input CreateCategoryInput {
+    categoryName: String!
+}
+
+input AddToCartInput {
+    productId: UUID!
+    quantity: Int!
+}
+
+input ProductFilter {
+    categoryId: UUID
+    keyword: String
+    minprice: BigDecimal
+    maxprice: BigDecimal
+    inStock: Boolean
+}
+
+input CreateReviewInput {
+    productId: UUID!
+    userId: UUID!
+    rating: Int!
+    comment: String
+}
+
+input CreateAddressInput {
+    userId: UUID!
+    addressLine: String
+    city: String!
+    region: String
+    country: String!
+    postalCode: String
+    addressType: String
+}
+
+input OrderItemInput {
+    productId: UUID!
+    quantity: Int!
+}
+
+input CreateOrderInput {
+    userId: UUID!
+    paymentMethodId: UUID
+    shippingAddressId: UUID
+    shippingMethodId: UUID
+    customerNotes: String
+    items: [OrderItemInput!]!
+}
+
+input UpdateOrderInput {
+    paymentMethodId: UUID
+    shippingAddressId: UUID
+    shippingMethodId: UUID
+    status: String
+    paymentStatus: String
+}
+
+# ============================================================================
+# QUERIES
+# ============================================================================
+
+type Query {
+    # User queries
+    user(id: UUID!): User
+    userByEmail(email: String!): User
+    users(page: Int = 0, size: Int = 10): UserPage!
+    searchUsers(keyword: String!, page: Int = 0, size: Int = 10): UserPage!
+
+    # Product queries
+    product(id: UUID!): Product
+    products(page: Int = 0, size: Int = 10): ProductPage!
+    activeProducts(page: Int = 0, size: Int = 10): ProductPage!
+    productsByCategory(categoryId: UUID!, page: Int = 0, size: Int = 10): ProductPage!
+    searchProducts(keyword: String!, page: Int = 0, size: Int = 10): ProductPage!
+    productsInStock(page: Int = 0, size: Int = 10): ProductPage!
+
+    # Category queries
+    category(id: UUID!): Category
+    categories: [Category]!
+
+    # Cart queries
+    cart(userId: UUID!): Cart
+    cartItemCount(userId: UUID!): Int!
+
+    # Order queries
+    order(id: UUID!): Order
+    orderByNumber(orderNumber: String!): Order
+    orders(page: Int = 0, size: Int = 10): OrderPage!
+    ordersByUser(userId: UUID!, page: Int = 0, size: Int = 10): OrderPage!
+    ordersByStatus(status: String!, page: Int = 0, size: Int = 10): OrderPage!
+
+    # Review queries
+    review(id: UUID!): Review
+    reviewsByProduct(productId: UUID!, page: Int = 0, size: Int = 10): ReviewPage!
+    reviewsByUser(userId: UUID!, page: Int = 0, size: Int = 10): ReviewPage!
+    productAverageRating(productId: UUID!): Float
+    hasUserReviewedProduct(userId: UUID!, productId: UUID!): Boolean!
+
+
+
+    # Address queries
+    address(id: UUID!): Address
+    addressesByUser(userId: UUID!): [Address]!
+    shippingAddresses(userId: UUID!): [Address]!
+    billingAddresses(userId: UUID!): [Address]!
+}
+
+# ============================================================================
+# MUTATIONS
+# ============================================================================
+
+type Mutation {
+    # User mutations
+    createUser(input: CreateUserInput!): User!
+    updateUser(id: UUID!, input: UpdateUserInput!): User!
+    deleteUser(id: UUID!): Boolean!
+    activateUser(id: UUID!): Boolean!
+    deactivateUser(id: UUID!): Boolean!
+
+    # Product mutations
+    createProduct(input: CreateProductInput!): Product!
+    updateProduct(id: UUID!, input: UpdateProductInput!): Product!
+    deleteProduct(id: UUID!): Boolean!
+    activateProduct(id: UUID!): Boolean!
+    deactivateProduct(id: UUID!): Boolean!
+    updateStock(id: UUID!, quantity: Int!): Boolean!
+
+    # Category mutations
+    createCategory(input: CreateCategoryInput!): Category!
+    updateCategory(id: UUID!, input: CreateCategoryInput!): Category!
+    deleteCategory(id: UUID!): Boolean!
+
+    # Cart mutations
+    addToCart(userId: UUID!, input: AddToCartInput!): Cart!
+    updateCartItemQuantity(userId: UUID!, itemId: UUID!, quantity: Int!): Cart!
+    removeFromCart(userId: UUID!, itemId: UUID!): Cart!
+    clearCart(userId: UUID!): Boolean!
+
+    # Order mutations
+    createOrder(input: CreateOrderInput!): Order!
+    updateOrder(id: UUID!, input: UpdateOrderInput!): Order!
+    updateOrderStatus(id: UUID!, status: String!): Order!
+    updatePaymentStatus(id: UUID!, paymentStatus: String!): Order!
+    cancelOrder(id: UUID!): Order!
+    deleteOrder(id: UUID!): Boolean!
+
+    # Review mutations
+    createReview(input: CreateReviewInput!): Review!
+    updateReview(id: UUID!, input: CreateReviewInput!): Review!
+    deleteReview(id: UUID!): Boolean!
+
+    # Address mutations
+    createAddress(input: CreateAddressInput!): Address!
+    updateAddress(id: UUID!, input: CreateAddressInput!): Address!
+    deleteAddress(id: UUID!): Boolean!
+}
