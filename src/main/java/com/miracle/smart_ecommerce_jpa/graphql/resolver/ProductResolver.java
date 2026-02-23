@@ -36,6 +36,7 @@ public class ProductResolver {
 
     @QueryMapping
     public PageResponse<ProductResponse> products(@Argument int page, @Argument int size) {
+        Page
         return productService.getAllProducts(page, size);
     }
 

@@ -1,83 +1,63 @@
 package com.miracle.smart_ecommerce_jpa.domain.product.repository;
 
 import com.miracle.smart_ecommerce_jpa.domain.product.entity.Product;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
+import org.springframework.data.jpa.repository.JpaRepository;
+import org.springframework.data.jpa.repository.Modifying;
+import org.springframework.data.jpa.repository.Query;
+import org.springframework.data.repository.query.Param;
+import org.springframework.stereotype.Repository;
 
 import java.math.BigDecimal;
-import java.util.List;
-import java.util.Optional;
 import java.util.UUID;
 
 /**
- * Repository interface for Product domain model.
- * Defines data access operations for products.
+ * JPA Repository interface for Product domain model.
  */
-public interface ProductRepository {
-
-    /**
-     * Save a new product
-     */
-    Product save(Product product);
-
-    /**
-     * Update an existing product
-     */
-    Product update(Product product);
-
-    /**
-     * Find product by ID
-     */
-    Optional<Product> findById(UUID id);
-
-
-    /**
-     * Find all products with pagination
-     */
-    List<Product> findAll(int page, int size);
+@Repository
+public interface ProductRepository extends JpaRepository<Product, UUID> {
 
     /**
      * Find active products with pagination
      */
-    List<Product> findActiveProducts(int page, int size);
+    @Query("SELECT p FROM Product p WHERE p.isActive = true")
+    Page<Product> findActiveProducts(Pageable pageable);
 
     /**
-     * Find products by category ID
+     * Find products by category ID with pagination
      */
-    List<Product> findByCategoryId(UUID categoryId, int page, int size);
+    Page<Product> findByCategoryId(UUID categoryId, Pageable pageable);
 
     /**
-     * Search products by name or description
+     * Find active products by category ID with pagination
      */
-    List<Product> search(String keyword, int page, int size);
+    @Query("SELECT p FROM Product p WHERE p.categoryId = :categoryId AND p.isActive = true")
+    Page<Product> findActiveByCategoryId(@Param("categoryId") UUID categoryId, Pageable pageable);
 
     /**
-     * Find products by price range
+     * Search products by name or description with pagination
      */
-    List<Product> findByPriceRange(BigDecimal minPrice, BigDecimal maxPrice, int page, int size);
+    @Query("SELECT p FROM Product p WHERE " +
+            "LOWER(p.name) LIKE LOWER(CONCAT('%', :keyword, '%')) " +
+            "OR LOWER(p.description) LIKE LOWER(CONCAT('%', :keyword, '%'))")
+    Page<Product> search(@Param("keyword") String keyword, Pageable pageable);
 
     /**
-     * Find products in stock
+     * Find products within a price range with pagination
      */
-    List<Product> findInStock(int page, int size);
+    Page<Product> findByPriceBetween(BigDecimal minPrice, BigDecimal maxPrice, Pageable pageable);
 
     /**
-     * Delete product by ID
+     * Find products in stock with pagination
      */
-    void deleteById(UUID id);
-
-    /**
-     * Check if product exists by ID
-     */
-    boolean existsById(UUID id);
-
-    /**
-     * Count total products
-     */
-    long count();
+    @Query("SELECT p FROM Product p WHERE p.stockQuantity > 0 AND p.isActive = true")
+    Page<Product> findInStock(Pageable pageable);
 
     /**
      * Count active products
      */
-    long countActive();
+    long countByIsActiveTrue();
 
     /**
      * Count products by category
@@ -85,17 +65,16 @@ public interface ProductRepository {
     long countByCategoryId(UUID categoryId);
 
     /**
-     * Update product stock
+     * Update product stock quantity
      */
-    void updateStock(UUID productId, int quantity);
+    @Modifying
+    @Query("UPDATE Product p SET p.stockQuantity = :quantity WHERE p.id = :productId")
+    void updateStock(@Param("productId") UUID productId, @Param("quantity") int quantity);
 
     /**
      * Set product active status
      */
-    void setActiveStatus(UUID id, boolean isActive);
-
-    /**
-     * Batch insert products
-     */
-    int[] batchInsert(List<Product> products);
+    @Modifying
+    @Query("UPDATE Product p SET p.isActive = :isActive WHERE p.id = :id")
+    void setActiveStatus(@Param("id") UUID id, @Param("isActive") boolean isActive);
 }

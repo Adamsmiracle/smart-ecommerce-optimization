@@ -1,6 +1,6 @@
 package com.miracle.smart_ecommerce_jpa.domain.order.mapper;
 
-import com.miracle.smart_ecommerce_jpa.common.util.JdbcUtils;
+import com.miracle.smart_ecommerce_jpa.common.util.Utils;
 import com.miracle.smart_ecommerce_jpa.domain.order.entity.CustomerOrder;
 import org.springframework.jdbc.core.RowMapper;
 import org.springframework.stereotype.Component;
@@ -17,17 +17,17 @@ public class CustomerOrderMapper implements RowMapper<CustomerOrder> {
     @Override
     public CustomerOrder mapRow(ResultSet rs, int rowNum) throws SQLException {
         return CustomerOrder.builder()
-                .id(JdbcUtils.getUUID(rs, "id"))
-                .userId(JdbcUtils.getUUID(rs, "user_id"))
+                .id(Utils.getUUID(rs, "id"))
+                .userId(Utils.getUUID(rs, "user_id"))
                 .orderNumber(rs.getString("order_number"))
                 .status(rs.getString("status"))
-                .paymentMethodId(JdbcUtils.getUUID(rs, "payment_method_id"))
-                .shippingMethodId(JdbcUtils.getUUID(rs, "shipping_method_id"))
+                .paymentMethodId(Utils.getUUID(rs, "payment_method_id"))
+                .shippingMethodId(Utils.getUUID(rs, "shipping_method_id"))
                 .paymentStatus(rs.getString("payment_status"))
                 .subtotal(rs.getBigDecimal("subtotal"))
                 .total(rs.getBigDecimal("total_amount"))
-                .createdAt(JdbcUtils.getOffsetDateTime(rs, "created_at"))
-                .updatedAt(JdbcUtils.getOffsetDateTime(rs, "updated_at"))
+                .createdAt(Utils.getOffsetDateTime(rs, "created_at"))
+                .updatedAt(Utils.getOffsetDateTime(rs, "updated_at"))
                 .build();
     }
 }

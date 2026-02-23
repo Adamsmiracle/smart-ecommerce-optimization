@@ -25,6 +25,7 @@ public class AddressResponse {
     private String country;
     private String postalCode;
     private String addressType;
+    private Boolean isDefault;
     private OffsetDateTime createdAt;
 
     /**
@@ -46,4 +47,3 @@ public class AddressResponse {
         return sb.toString();
     }
 }
-

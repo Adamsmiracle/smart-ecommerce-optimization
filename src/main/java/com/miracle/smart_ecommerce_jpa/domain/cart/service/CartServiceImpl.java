@@ -1,210 +1,287 @@
 package com.miracle.smart_ecommerce_jpa.domain.cart.service;
 
 import com.miracle.smart_ecommerce_jpa.common.response.PageResponse;
-import com.miracle.smart_ecommerce_jpa.domain.cart.entity.CartItem;
-import com.miracle.smart_ecommerce_jpa.domain.product.entity.Product;
-import com.miracle.smart_ecommerce_jpa.domain.cart.entity.ShoppingCart;
 import com.miracle.smart_ecommerce_jpa.domain.cart.dto.AddToCartRequest;
 import com.miracle.smart_ecommerce_jpa.domain.cart.dto.CartResponse;
-import com.miracle.smart_ecommerce_jpa.exception.BadRequestException;
-import com.miracle.smart_ecommerce_jpa.exception.ResourceNotFoundException;
-import com.miracle.smart_ecommerce_jpa.domain.cart.repository.CartRepository;
+import com.miracle.smart_ecommerce_jpa.domain.cart.entity.CartItem;
+import com.miracle.smart_ecommerce_jpa.domain.cart.entity.ShoppingCart;
+import com.miracle.smart_ecommerce_jpa.domain.cart.repository.CartItemRepository;
+import com.miracle.smart_ecommerce_jpa.domain.cart.repository.ShoppingCartRepository;
+import com.miracle.smart_ecommerce_jpa.domain.product.entity.Product;
 import com.miracle.smart_ecommerce_jpa.domain.product.repository.ProductRepository;
 import com.miracle.smart_ecommerce_jpa.domain.user.repository.UserRepository;
+import com.miracle.smart_ecommerce_jpa.exception.BadRequestException;
+import com.miracle.smart_ecommerce_jpa.exception.ResourceNotFoundException;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.cache.annotation.CacheEvict;
 import org.springframework.cache.annotation.Cacheable;
+import org.springframework.dao.DataIntegrityViolationException;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.math.BigDecimal;
-import java.time.OffsetDateTime;
 import java.util.List;
+import java.util.Map;
 import java.util.UUID;
 import java.util.stream.Collectors;
 
 import static com.miracle.smart_ecommerce_jpa.config.CacheConfig.*;
 
 /**
- * Implementation of CartService using raw JDBC.
+ * Implementation of CartService using Spring Data JPA.
+ *
+ * Transaction strategy:
+ * - Read operations use readOnly = true for performance
+ * - Write operations use default REQUIRED propagation
+ * - getOrCreateCart creates a cart within the same transaction if one doesn't exist
+ *
+ * Cache strategy:
+ * - Carts cached per user ID
+ * - Cache evicted on any mutation (add, update, remove, clear)
+ *
+ * Exception strategy:
+ * - ResourceNotFoundException for missing entities
+ * - BadRequestException for stock violations and cart ownership violations
+ * - DataIntegrityViolationException caught as safety net for DB constraint violations
  */
 @Service
 @RequiredArgsConstructor
 @Slf4j
 public class CartServiceImpl implements CartService {
 
-    private final CartRepository cartRepository;
+    private final ShoppingCartRepository cartRepository;
+    private final CartItemRepository cartItemRepository;
     private final ProductRepository productRepository;
     private final UserRepository userRepository;
 
-
+    /**
+     * Get all carts with pagination - admin use only.
+     * Products batch-fetched to avoid N+1 when building item responses.
+     */
     @Override
     @Transactional(readOnly = true)
-    public PageResponse<CartResponse> getAllCarts(int page, int size) {
-        log.debug("Getting all carts - page: {}, size: {}", page, size);
+    public PageResponse<CartResponse> getAllCarts(Pageable pageable) {
+        log.debug("Getting all carts - pageable: {}", pageable);
 
-        List<ShoppingCart> carts = cartRepository.findAll(page, size);
-        long total = cartRepository.count();
-
-        List<CartResponse> responses = carts.stream()
+        Page<ShoppingCart> cartPage = cartRepository.findAll(pageable);
+        List<CartResponse> responses = cartPage.getContent().stream()
                 .map(this::buildCartResponse)
-                .collect(Collectors.toList());
+                .toList();
 
-        return PageResponse.of(responses, page, size, total);
+        return PageResponse.of(responses, pageable.getPageNumber(), pageable.getPageSize(), cartPage.getTotalElements());
     }
 
+    /**
+     * Get cart by user ID.
+     * Creates a new cart if one doesn't exist for the user.
+     * Result cached per user ID.
+     */
     @Override
     @Transactional
     @Cacheable(value = CART_CACHE, key = "#userId")
     public CartResponse getCartByUserId(UUID userId) {
         log.debug("Getting cart for user: {}", userId);
-
         ShoppingCart cart = getOrCreateCart(userId);
         return buildCartResponse(cart);
     }
 
+    /**
+     * Add an item to the user's cart.
+     * Creates the cart if it doesn't exist.
+     * Validates product availability and stock before adding.
+     * If the product already exists in the cart, increments quantity.
+     * Cache evicted after update.
+     */
     @Override
     @Transactional
     @CacheEvict(value = CART_CACHE, key = "#userId")
     public CartResponse addItemToCart(UUID userId, AddToCartRequest request) {
         log.info("Adding item to cart for user: {} - product: {}", userId, request.getProductId());
 
-        // Validate product exists and is in stock
         Product product = productRepository.findById(request.getProductId())
                 .orElseThrow(() -> ResourceNotFoundException.forResource("Product", request.getProductId()));
 
         if (!product.getIsActive()) {
-            throw new BadRequestException("Product is not available");
+            throw new BadRequestException("Product is not available: " + product.getName());
         }
 
         if (!product.canBeOrdered(request.getQuantity())) {
-            throw new BadRequestException("Insufficient stock. Available: " + product.getStockQuantity());
+            throw new BadRequestException(
+                    "Insufficient stock for product: " + product.getName() +
+                            ". Available: " + product.getStockQuantity() +
+                            ", Requested: " + request.getQuantity());
         }
 
-        // Get or create cart
         ShoppingCart cart = getOrCreateCart(userId);
 
-        // Add item to cart
-        CartItem item = CartItem.builder()
-                .cartId(cart.getId())
-                .productId(request.getProductId())
-                .quantity(request.getQuantity())
-                .build();
-
-        cartRepository.addItem(item);
-        log.info("Item added to cart successfully");
+        // If product already in cart, increment quantity instead of adding duplicate
+        cartItemRepository.findByCartIdAndProductId(cart.getId(), request.getProductId())
+                .ifPresentOrElse(
+                        existing -> {
+                            int newQty = existing.getQuantity() + request.getQuantity();
+                            if (!product.canBeOrdered(newQty)) {
+                                throw new BadRequestException(
+                                        "Cannot add more of this product. Available: " + product.getStockQuantity());
+                            }
+                            cartItemRepository.updateQuantity(existing.getId(), newQty);
+                            log.info("Incremented quantity for existing cart item: {}", existing.getId());
+                        },
+                        () -> {
+                            try {
+                                CartItem item = CartItem.builder()
+                                        .cartId(cart.getId())
+                                        .productId(request.getProductId())
+                                        .quantity(request.getQuantity())
+                                        .build();
+                                cartItemRepository.save(item);
+                                log.info("New cart item added for product: {}", request.getProductId());
+                            } catch (DataIntegrityViolationException e) {
+                                log.error("Data integrity violation adding item to cart", e);
+                                throw new DataIntegrityViolationException("Failed to add item to cart: " + e.getMessage());
+                            }
+                        }
+                );
 
         return buildCartResponse(cart);
     }
 
+    /**
+     * Update the quantity of an item in the cart.
+     * Validates that the item belongs to the user's cart.
+     * Validates stock availability for the new quantity.
+     * Cache evicted after update.
+     */
     @Override
     @Transactional
     @CacheEvict(value = CART_CACHE, key = "#userId")
     public CartResponse updateItemQuantity(UUID userId, UUID itemId, int quantity) {
         log.info("Updating item quantity: {} to {} for user: {}", itemId, quantity, userId);
 
-        ShoppingCart cart = cartRepository.findCartByUserId(userId)
-                .orElseThrow(() -> new ResourceNotFoundException("Cart not found for user"));
-
-        CartItem item = cartRepository.findItemById(itemId)
-                .orElseThrow(() -> ResourceNotFoundException.forResource("CartItem", itemId));
-
-        // Verify item belongs to user's cart
-        if (!item.getCartId().equals(cart.getId())) {
-            throw new BadRequestException("Item does not belong to user's cart");
-        }
-
-        // Validate quantity
         if (quantity < 1) {
             throw new BadRequestException("Quantity must be at least 1");
         }
 
-        // Check stock
-        Product product = productRepository.findById(item.getProductId())
-                .orElseThrow(() -> ResourceNotFoundException.forResource("Product", item.getProductId()));
+        ShoppingCart cart = cartRepository.findByUserId(userId)
+                .orElseThrow(() -> new ResourceNotFoundException("Cart", "userId", userId.toString()));
 
-        if (!product.canBeOrdered(quantity)) {
-            throw new BadRequestException("Insufficient stock. Available: " + product.getStockQuantity());
-        }
-
-        cartRepository.updateItemQuantity(itemId, quantity);
-        log.info("Item quantity updated successfully");
-
-        return buildCartResponse(cart);
-    }
-
-    @Override
-    @Transactional
-    @CacheEvict(value = CART_CACHE, key = "#userId")
-    public CartResponse removeItemFromCart(UUID userId, UUID itemId) {
-        log.info("Removing item from cart: {} for user: {}", itemId, userId);
-
-        ShoppingCart cart = cartRepository.findCartByUserId(userId)
-                .orElseThrow(() -> new ResourceNotFoundException("Cart not found for user"));
-
-        CartItem item = cartRepository.findItemById(itemId)
+        CartItem item = cartItemRepository.findById(itemId)
                 .orElseThrow(() -> ResourceNotFoundException.forResource("CartItem", itemId));
 
-        // Verify item belongs to user's cart
         if (!item.getCartId().equals(cart.getId())) {
             throw new BadRequestException("Item does not belong to user's cart");
         }
 
-        cartRepository.deleteItemById(itemId);
-        log.info("Item removed from cart successfully");
+        Product product = productRepository.findById(item.getProductId())
+                .orElseThrow(() -> ResourceNotFoundException.forResource("Product", item.getProductId()));
+
+        if (!product.canBeOrdered(quantity)) {
+            throw new BadRequestException(
+                    "Insufficient stock. Available: " + product.getStockQuantity() +
+                            ", Requested: " + quantity);
+        }
+
+        cartItemRepository.updateQuantity(itemId, quantity);
+        log.info("Item quantity updated successfully: {}", itemId);
 
         return buildCartResponse(cart);
     }
 
+    /**
+     * Remove an item from the cart.
+     * Validates that the item belongs to the user's cart.
+     * Cache evicted after removal.
+     */
+    @Override
+    @Transactional
+    @CacheEvict(value = CART_CACHE, key = "#userId")
+    public CartResponse removeItemFromCart(UUID userId, UUID itemId) {
+        log.info("Removing item: {} from cart for user: {}", itemId, userId);
+
+        ShoppingCart cart = cartRepository.findByUserId(userId)
+                .orElseThrow(() -> new ResourceNotFoundException("Cart", "userId", userId.toString()));
+
+        CartItem item = cartItemRepository.findById(itemId)
+                .orElseThrow(() -> ResourceNotFoundException.forResource("CartItem", itemId));
+
+        if (!item.getCartId().equals(cart.getId())) {
+            throw new BadRequestException("Item does not belong to user's cart");
+        }
+
+        cartItemRepository.deleteById(itemId);
+        log.info("Item removed from cart successfully: {}", itemId);
+
+        return buildCartResponse(cart);
+    }
+
+    /**
+     * Clear all items from a user's cart.
+     * Silently does nothing if the cart doesn't exist.
+     * Cache evicted after clearing.
+     */
     @Override
     @Transactional
     @CacheEvict(value = CART_CACHE, key = "#userId")
     public void clearCart(UUID userId) {
         log.info("Clearing cart for user: {}", userId);
 
-        ShoppingCart cart = cartRepository.findCartByUserId(userId).orElse(null);
-        if (cart != null) {
-            cartRepository.deleteAllItemsByCartId(cart.getId());
-        }
-        log.info("Cart cleared successfully");
+        cartRepository.findByUserId(userId).ifPresent(cart -> {
+            cartItemRepository.deleteByCartId(cart.getId());
+            log.info("Cart cleared successfully for user: {}", userId);
+        });
     }
 
+    /**
+     * Get total item count in a user's cart.
+     * Returns 0 if no cart exists.
+     */
     @Override
     @Transactional(readOnly = true)
     public int getCartItemCount(UUID userId) {
-        ShoppingCart cart = cartRepository.findCartByUserId(userId).orElse(null);
-        if (cart == null) {
-            return 0;
-        }
-        return cartRepository.countItemsByCartId(cart.getId());
+        return cartRepository.findByUserId(userId)
+                .map(cart -> (int) cartItemRepository.countByCartId(cart.getId()))
+                .orElse(0);
     }
 
     // ========================================================================
     // Helper Methods
     // ========================================================================
 
+    /**
+     * Finds the cart for a user or creates a new one if it doesn't exist.
+     * Validates user existence before creating a new cart.
+     */
     private ShoppingCart getOrCreateCart(UUID userId) {
-        return cartRepository.findCartByUserId(userId)
-                .orElseGet(() -> {
-                    // Validate user exists
-                    if (!userRepository.existsById(userId)) {
-                        throw ResourceNotFoundException.forResource("User", userId);
-                    }
-
-                    ShoppingCart newCart = ShoppingCart.builder()
-                            .userId(userId)
-                            .build();
-                    return cartRepository.saveCart(newCart);
-                });
+        return cartRepository.findByUserId(userId).orElseGet(() -> {
+            if (!userRepository.existsById(userId)) {
+                throw ResourceNotFoundException.forResource("User", userId);
+            }
+            ShoppingCart newCart = ShoppingCart.builder()
+                    .userId(userId)
+                    .build();
+            ShoppingCart saved = cartRepository.save(newCart);
+            log.info("Created new cart for user: {}", userId);
+            return saved;
+        });
     }
 
+    /**
+     * Builds a full cart response from a ShoppingCart entity.
+     * Batch-fetches all products for cart items to avoid N+1 queries.
+     */
     private CartResponse buildCartResponse(ShoppingCart cart) {
-        List<CartItem> items = cartRepository.findItemsByCartId(cart.getId());
+        List<CartItem> items = cartItemRepository.findByCartId(cart.getId());
+
+        // Batch fetch all products to avoid N+1
+        List<UUID> productIds = items.stream().map(CartItem::getProductId).toList();
+        Map<UUID, Product> productMap = productRepository.findAllById(productIds).stream()
+                .collect(Collectors.toMap(Product::getId, p -> p));
 
         List<CartResponse.CartItemResponse> itemResponses = items.stream()
-                .map(this::mapToCartItemResponse)
-                .collect(Collectors.toList());
+                .map(item -> mapToCartItemResponse(item, productMap.get(item.getProductId())))
+                .toList();
 
         int totalItems = itemResponses.stream()
                 .mapToInt(CartResponse.CartItemResponse::getQuantity)
@@ -219,14 +296,15 @@ public class CartServiceImpl implements CartService {
                 .userId(cart.getUserId())
                 .totalItems(totalItems)
                 .totalValue(totalValue)
-                .createdAt(OffsetDateTime.from(cart.getCreatedAt()))
+                .createdAt(cart.getCreatedAt())
                 .items(itemResponses)
                 .build();
     }
 
-    private CartResponse.CartItemResponse mapToCartItemResponse(CartItem item) {
-        Product product = productRepository.findById(item.getProductId()).orElse(null);
-
+    /**
+     * Maps a CartItem to its response DTO using a pre-fetched product.
+     */
+    private CartResponse.CartItemResponse mapToCartItemResponse(CartItem item, Product product) {
         String productName = product != null ? product.getName() : "Unknown Product";
         String productImage = product != null ? product.getPrimaryImage() : null;
         BigDecimal unitPrice = product != null ? product.getPrice() : BigDecimal.ZERO;
@@ -246,4 +324,3 @@ public class CartServiceImpl implements CartService {
                 .build();
     }
 }
-

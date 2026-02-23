@@ -1,31 +1,22 @@
 package com.miracle.smart_ecommerce_jpa.domain.order.repository;
 
 import com.miracle.smart_ecommerce_jpa.domain.order.entity.CustomerOrder;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
+import org.springframework.data.jpa.repository.JpaRepository;
+import org.springframework.data.jpa.repository.Modifying;
+import org.springframework.data.jpa.repository.Query;
+import org.springframework.data.repository.query.Param;
+import org.springframework.stereotype.Repository;
 
-import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
 
 /**
- * Repository interface for CustomerOrder domain model.
- * Defines data access operations for orders.
+ * JPA Repository interface for CustomerOrder domain model.
  */
-public interface OrderRepository {
-
-    /**
-     * Save a new order
-     */
-    CustomerOrder save(CustomerOrder order);
-
-    /**
-     * Update an existing order
-     */
-    CustomerOrder update(CustomerOrder order);
-
-    /**
-     * Find order by ID
-     */
-    Optional<CustomerOrder> findById(UUID id);
+@Repository
+public interface OrderRepository extends JpaRepository<CustomerOrder, UUID> {
 
     /**
      * Find order by order number
@@ -33,41 +24,19 @@ public interface OrderRepository {
     Optional<CustomerOrder> findByOrderNumber(String orderNumber);
 
     /**
-     * Find all orders
+     * Find orders by user ID with pagination
      */
-    List<CustomerOrder> findAll();
+    Page<CustomerOrder> findByUserId(UUID userId, Pageable pageable);
 
     /**
-     * Find all orders with pagination
+     * Find orders by status with pagination
      */
-    List<CustomerOrder> findAll(int page, int size);
+    Page<CustomerOrder> findByStatus(String status, Pageable pageable);
 
     /**
-     * Find orders by user ID
+     * Find orders by user ID and status with pagination
      */
-    List<CustomerOrder> findByUserId(UUID userId, int page, int size);
-
-    /**
-     * Find orders by status
-     */
-    List<CustomerOrder> findByStatus(String status, int page, int size);
-
-
-
-    /**
-     * Delete order by ID
-     */
-    void deleteById(UUID id);
-
-    /**
-     * Check if order exists by ID
-     */
-    boolean existsById(UUID id);
-
-    /**
-     * Count total orders
-     */
-    long count();
+    Page<CustomerOrder> findByUserIdAndStatus(UUID userId, String status, Pageable pageable);
 
     /**
      * Count orders by status
@@ -82,11 +51,14 @@ public interface OrderRepository {
     /**
      * Update order status
      */
-    void updateStatus(UUID id, String status);
+    @Modifying
+    @Query("UPDATE CustomerOrder o SET o.status = :status WHERE o.id = :id")
+    void updateStatus(@Param("id") UUID id, @Param("status") String status);
 
     /**
      * Update payment status
      */
-    void updatePaymentStatus(UUID id, String paymentStatus);
+    @Modifying
+    @Query("UPDATE CustomerOrder o SET o.paymentStatus = :paymentStatus WHERE o.id = :id")
+    void updatePaymentStatus(@Param("id") UUID id, @Param("paymentStatus") String paymentStatus);
 }
-

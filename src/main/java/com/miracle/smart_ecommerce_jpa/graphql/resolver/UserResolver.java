@@ -6,6 +6,8 @@ import com.miracle.smart_ecommerce_jpa.domain.user.dto.request.UpdateUserRequest
 import com.miracle.smart_ecommerce_jpa.domain.user.dto.response.UserResponse;
 import com.miracle.smart_ecommerce_jpa.domain.user.service.UserService;
 import lombok.RequiredArgsConstructor;
+import org.springframework.data.domain.PageRequest;
+import org.springframework.data.domain.Pageable;
 import org.springframework.graphql.data.method.annotation.Argument;
 import org.springframework.graphql.data.method.annotation.MutationMapping;
 import org.springframework.graphql.data.method.annotation.QueryMapping;
@@ -40,14 +42,16 @@ public class UserResolver {
 
     @QueryMapping
     public PageResponse<UserResponse> users(@Argument int page, @Argument int size) {
-        return userService.getAllUsers(page, size);
+        Pageable pageable = PageRequest.of(page, size);
+        return userService.getAllUsers(pageable);
     }
 
     @QueryMapping
     public PageResponse<UserResponse> searchUsers(@Argument String keyword,
                                                    @Argument int page,
                                                    @Argument int size) {
-        return userService.searchUsers(keyword, page, size);
+        Pageable pageable = PageRequest.of(page, size);
+        return userService.searchUsers(keyword, pageable);
     }
 
     // ========================================================================

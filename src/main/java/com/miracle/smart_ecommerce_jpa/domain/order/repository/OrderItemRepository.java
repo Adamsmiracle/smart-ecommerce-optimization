@@ -1,35 +1,22 @@
 package com.miracle.smart_ecommerce_jpa.domain.order.repository;
 
 import com.miracle.smart_ecommerce_jpa.domain.order.entity.OrderItem;
+import org.springframework.data.jpa.repository.JpaRepository;
+import org.springframework.stereotype.Repository;
 
 import java.util.List;
-import java.util.Optional;
 import java.util.UUID;
 
 /**
- * Repository interface for OrderItem operations.
+ * JPA Repository interface for OrderItem domain model.
  */
-public interface OrderItemRepository {
-
-    /**
-     * Save a new order item
-     */
-    OrderItem save(OrderItem item);
-
-    /**
-     * Find order item by ID
-     */
-    Optional<OrderItem> findById(UUID id);
+@Repository
+public interface OrderItemRepository extends JpaRepository<OrderItem, UUID> {
 
     /**
      * Find all items for an order
      */
     List<OrderItem> findByOrderId(UUID orderId);
-
-    /**
-     * Delete order item by ID
-     */
-    void deleteById(UUID id);
 
     /**
      * Delete all items for an order
@@ -41,4 +28,3 @@ public interface OrderItemRepository {
      */
     long countByOrderId(UUID orderId);
 }
-

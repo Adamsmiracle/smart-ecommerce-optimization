@@ -16,6 +16,7 @@ public class ShippingMethodResponse {
     private String description;
     private BigDecimal price;
     private Integer estimatedDays;
+    private Boolean isActive = true;
     private OffsetDateTime createdAt;
 }
 

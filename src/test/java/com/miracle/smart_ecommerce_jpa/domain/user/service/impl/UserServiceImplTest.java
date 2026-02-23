@@ -11,8 +11,7 @@ import org.mockito.ArgumentCaptor;
 import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.MockitoAnnotations;
-import org.springframework.cache.Cache;
-import org.springframework.cache.CacheManager;
+import org.springframework.security.crypto.password.PasswordEncoder;
 
 import java.util.UUID;
 
@@ -26,10 +25,7 @@ class UserServiceImplTest {
     private UserRepository userRepository;
 
     @Mock
-    private CacheManager cacheManager;
-
-    @Mock
-    private Cache cache;
+    private PasswordEncoder passwordEncoder;
 
     @InjectMocks
     private UserServiceImpl userService;
@@ -37,7 +33,7 @@ class UserServiceImplTest {
     @BeforeEach
     void setup() {
         MockitoAnnotations.openMocks(this);
-        when(cacheManager.getCache(anyString())).thenReturn(cache);
+        when(passwordEncoder.encode(any(String.class))).thenReturn("hashed");
     }
 
     @Test
@@ -50,7 +46,7 @@ class UserServiceImplTest {
                 .password("password123")
                 .build();
 
-        when(userRepository.existsByEmail(req.getEmailAddress())).thenReturn(false);
+        when(userRepository.existsByEmailAddress(req.getEmailAddress())).thenReturn(false);
 
         UUID id = UUID.randomUUID();
         User saved = User.builder()
@@ -71,9 +67,6 @@ class UserServiceImplTest {
         assertEquals(req.getEmailAddress(), resp.getEmailAddress());
         verify(userRepository, times(1)).save(any(User.class));
 
-        // verify cache was updated
-        verify(cache, atLeastOnce()).put(any(), any());
-
         // verify saved user had password hashed (we can't assert exact hash but ensure passwordHash not equal to plain)
         ArgumentCaptor<User> captor = ArgumentCaptor.forClass(User.class);
         verify(userRepository).save(captor.capture());
@@ -89,7 +82,7 @@ class UserServiceImplTest {
                 .password("password123")
                 .build();
 
-        when(userRepository.existsByEmail(req.getEmailAddress())).thenReturn(true);
+        when(userRepository.existsByEmailAddress(req.getEmailAddress())).thenReturn(true);
 
         assertThrows(DuplicateResourceException.class, () -> userService.createUser(req));
 

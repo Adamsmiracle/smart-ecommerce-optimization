@@ -1,29 +1,49 @@
 package com.miracle.smart_ecommerce_jpa.domain.category.entity;
 
-import jakarta.validation.constraints.*;
+import com.miracle.smart_ecommerce_jpa.domain.BaseModel;
+import jakarta.persistence.Column;
+import jakarta.persistence.Entity;
+import jakarta.persistence.Table;
+import jakarta.validation.constraints.NotBlank;
+import jakarta.validation.constraints.Size;
 import lombok.*;
 import lombok.experimental.SuperBuilder;
+import org.hibernate.proxy.HibernateProxy;
 
-import java.util.UUID;
+import java.util.Objects;
 
 /**
- * Product Category domain model (POJO) - represents product_category table.
+ * Product Category JPA entity - represents product_category table.
  * Supports hierarchical categories with parent-child relationships.
- * No JPA annotations - used with raw JDBC.
  */
-@Data
-@NoArgsConstructor
-@AllArgsConstructor
+@Entity
+@Table(name = "product_category")
+@Getter
+@Setter
+@ToString
+@RequiredArgsConstructor
 @SuperBuilder
-@EqualsAndHashCode(callSuper = false)
-public class Category {
-
-    @NotNull(message = "id is required")
-    private UUID id;
+public class Category extends BaseModel {
 
     @NotBlank(message = "Category name is required")
     @Size(min = 2, max = 100, message = "Category name must be between 2 and 100 characters")
+    @Column(name = "category_name", nullable = false, length = 100)
     private String categoryName;
 
+    @Override
+    public final boolean equals(Object o) {
+        if (this == o) return true;
+        if (o == null) return false;
+        Class<?> oEffectiveClass = o instanceof HibernateProxy ? ((HibernateProxy) o).getHibernateLazyInitializer().getPersistentClass() : o.getClass();
+        Class<?> thisEffectiveClass = this instanceof HibernateProxy ? ((HibernateProxy) this).getHibernateLazyInitializer().getPersistentClass() : this.getClass();
+        if (thisEffectiveClass != oEffectiveClass) return false;
+        Category category = (Category) o;
+        return getId() != null && Objects.equals(getId(), category.getId());
+    }
+
+    @Override
+    public final int hashCode() {
+        return this instanceof HibernateProxy ? ((HibernateProxy) this).getHibernateLazyInitializer().getPersistentClass().hashCode() : getClass().hashCode();
+    }
 }
 

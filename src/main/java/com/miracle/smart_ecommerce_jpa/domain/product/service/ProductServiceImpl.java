@@ -4,26 +4,46 @@ import com.miracle.smart_ecommerce_jpa.common.response.PageResponse;
 import com.miracle.smart_ecommerce_jpa.domain.product.entity.Product;
 import com.miracle.smart_ecommerce_jpa.domain.product.dto.CreateProductRequest;
 import com.miracle.smart_ecommerce_jpa.domain.product.dto.ProductResponse;
+import com.miracle.smart_ecommerce_jpa.domain.product.dto.UpdateProductRequest;
 import com.miracle.smart_ecommerce_jpa.domain.category.repository.CategoryRepository;
 import com.miracle.smart_ecommerce_jpa.domain.product.repository.ProductRepository;
 import com.miracle.smart_ecommerce_jpa.exception.ResourceNotFoundException;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
-import org.springframework.cache.Cache;
-import org.springframework.cache.CacheManager;
+import org.springframework.cache.annotation.CacheEvict;
+import org.springframework.cache.annotation.CachePut;
 import org.springframework.cache.annotation.Cacheable;
+import org.springframework.cache.annotation.Caching;
+import org.springframework.dao.DataIntegrityViolationException;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.math.BigDecimal;
 import java.util.List;
 import java.util.UUID;
-import java.util.stream.Collectors;
 
 import static com.miracle.smart_ecommerce_jpa.config.CacheConfig.*;
 
 /**
- * Implementation of ProductService using raw JDBC.
+ * Implementation of ProductService using Spring Data JPA.
+ *
+ * Transaction strategy:
+ * - Read operations use readOnly = true for performance optimization
+ * - Write operations use default REQUIRED propagation
+ * - Dirty checking handles updates without explicit save()
+ * - @Modifying queries (updateStock, setActiveStatus) run within the same transaction
+ *
+ * Cache strategy:
+ * - Individual products cached by ID
+ * - All product cache entries evicted on create, update, delete, activate,
+ *   deactivate, and stock update to prevent stale data in listings
+ *
+ * Exception strategy:
+ * - ResourceNotFoundException for missing entities
+ * - DataIntegrityViolationException caught as safety net for DB constraint violations
+ * - IllegalArgumentException for invalid input (e.g. negative stock)
  */
 @Service
 @RequiredArgsConstructor
@@ -32,46 +52,51 @@ public class ProductServiceImpl implements ProductService {
 
     private final ProductRepository productRepository;
     private final CategoryRepository categoryRepository;
-    private final CacheManager cacheManager;
 
-
+    /**
+     * Create a new product.
+     * Validates category existence before saving.
+     * Result cached by ID after creation.
+     * All list caches evicted to reflect new product in listings.
+     */
     @Override
     @Transactional
+    @Caching(
+            put = { @CachePut(value = PRODUCTS_CACHE, key = "'id:' + #result.id") },
+            evict = { @CacheEvict(value = PRODUCTS_CACHE, allEntries = true) }
+    )
     public ProductResponse createProduct(CreateProductRequest request) {
         log.info("Creating product: {}", request.getName());
 
-        // Validate category exists
         if (!categoryRepository.existsById(request.getCategoryId())) {
             throw ResourceNotFoundException.forResource("Category", request.getCategoryId());
         }
 
-        Product product = Product.builder()
-                .categoryId(request.getCategoryId())
-                .name(request.getName())
-                .description(request.getDescription())
-                .price(request.getPrice())
-                .stockQuantity(request.getStockQuantity() != null ? request.getStockQuantity() : 0)
-                .isActive(request.getIsActive() != null ? request.getIsActive() : true)
-                .images(request.getImages())
-                .build();
+        try {
+            Product product = Product.builder()
+                    .categoryId(request.getCategoryId())
+                    .name(request.getName())
+                    .description(request.getDescription())
+                    .price(request.getPrice())
+                    .stockQuantity(request.getStockQuantity() != null ? request.getStockQuantity() : 0)
+                    .isActive(request.getIsActive() != null ? request.getIsActive() : true)
+                    .images(request.getImages())
+                    .build();
 
-        Product savedProduct = productRepository.save(product);
-        log.info("Product created successfully with ID: {}", savedProduct.getId());
+            Product saved = productRepository.save(product);
+            log.info("Product created successfully with ID: {}", saved.getId());
+            return mapToResponse(saved);
 
-        ProductResponse response = mapToResponse(savedProduct);
-
-        // Update caches with new product
-        Cache byIdCache = cacheManager.getCache(PRODUCTS_CACHE);
-        if (byIdCache != null) {
-            byIdCache.put("id:" + savedProduct.getId(), response);
+        } catch (DataIntegrityViolationException e) {
+            log.error("Data integrity violation while creating product: {}", request.getName(), e);
+            throw new DataIntegrityViolationException("Failed to create product due to a data integrity constraint: " + e.getMessage());
         }
-
-        // Clear list/search caches
-        evictCache();
-        evictCache();
-        return response;
     }
 
+    /**
+     * Get product by ID.
+     * Result cached by ID to avoid repeated DB lookups.
+     */
     @Override
     @Transactional(readOnly = true)
     @Cacheable(value = PRODUCTS_CACHE, key = "'id:' + #id")
@@ -79,237 +104,234 @@ public class ProductServiceImpl implements ProductService {
         log.debug("Getting product by ID: {}", id);
         Product product = productRepository.findById(id)
                 .orElseThrow(() -> ResourceNotFoundException.forResource("Product", id));
-        return mapToResponseWithCategory(product);
+        return mapToResponse(product);
     }
 
+    /**
+     * Get all products with pagination and sorting.
+     */
     @Override
     @Transactional(readOnly = true)
-    public ProductResponse getProductBySku(String sku) {
-        throw new UnsupportedOperationException("SKU lookup is not supported in current schema");
-    }
+    public PageResponse<ProductResponse> getAllProducts(Pageable pageable) {
+        log.debug("Getting all products - pageable: {}", pageable);
 
-    @Override
-    @Transactional(readOnly = true)
-    public PageResponse<ProductResponse> getAllProducts(int page, int size) {
-        log.debug("Getting all products - page: {}, size: {}", page, size);
-        List<Product> products = productRepository.findAll(page, size);
-        long total = productRepository.count();
-
-        List<ProductResponse> responses = products.stream()
+        Page<Product> productPage = productRepository.findAll(pageable);
+        List<ProductResponse> responses = productPage.getContent().stream()
                 .map(this::mapToResponse)
-                .collect(Collectors.toList());
+                .toList();
 
-        return PageResponse.of(responses, page, size, total);
+        return PageResponse.of(responses, pageable.getPageNumber(), pageable.getPageSize(), productPage.getTotalElements());
     }
 
+    /**
+     * Get active products with pagination.
+     */
     @Override
     @Transactional(readOnly = true)
-    public PageResponse<ProductResponse> getActiveProducts(int page, int size) {
-        log.debug("Getting active products - page: {}, size: {}", page, size);
-        List<Product> products = productRepository.findActiveProducts(page, size);
-        long total = productRepository.countActive();
+    public PageResponse<ProductResponse> getActiveProducts(Pageable pageable) {
+        log.debug("Getting active products - pageable: {}", pageable);
 
-        List<ProductResponse> responses = products.stream()
+        Page<Product> productPage = productRepository.findActiveProducts(pageable);
+        List<ProductResponse> responses = productPage.getContent().stream()
                 .map(this::mapToResponse)
-                .collect(Collectors.toList());
+                .toList();
 
-        return PageResponse.of(responses, page, size, total);
+        return PageResponse.of(responses, pageable.getPageNumber(), pageable.getPageSize(), productPage.getTotalElements());
     }
 
+    /**
+     * Get products by category with pagination.
+     * Validates category existence before querying.
+     */
     @Override
     @Transactional(readOnly = true)
-    public PageResponse<ProductResponse> getProductsByCategory(UUID categoryId, int page, int size) {
-        log.debug("Getting products by category: {} - page: {}, size: {}", categoryId, page, size);
+    public PageResponse<ProductResponse> getProductsByCategory(UUID categoryId, Pageable pageable) {
+        log.debug("Getting products by category: {}", categoryId);
 
         if (!categoryRepository.existsById(categoryId)) {
             throw ResourceNotFoundException.forResource("Category", categoryId);
         }
 
-        List<Product> products = productRepository.findByCategoryId(categoryId, page, size);
-        long total = productRepository.countByCategoryId(categoryId);
-
-        List<ProductResponse> responses = products.stream()
+        Page<Product> productPage = productRepository.findActiveByCategoryId(categoryId, pageable);
+        List<ProductResponse> responses = productPage.getContent().stream()
                 .map(this::mapToResponse)
-                .collect(Collectors.toList());
+                .toList();
 
-        return PageResponse.of(responses, page, size, total);
+        return PageResponse.of(responses, pageable.getPageNumber(), pageable.getPageSize(), productPage.getTotalElements());
     }
 
+    /**
+     * Search products by keyword across name and description with pagination.
+     */
     @Override
     @Transactional(readOnly = true)
-    public PageResponse<ProductResponse> searchProducts(String keyword, int page, int size) {
-        log.debug("Searching products with keyword: {} - page: {}, size: {}", keyword, page, size);
-        List<Product> products = productRepository.search(keyword, page, size);
-        long total = productRepository.countActive();
+    public PageResponse<ProductResponse> searchProducts(String keyword, Pageable pageable) {
+        log.debug("Searching products with keyword: {}", keyword);
 
-        List<ProductResponse> responses = products.stream()
+        if (keyword == null || keyword.trim().isEmpty()) {
+            throw new IllegalArgumentException("Search keyword cannot be null or empty");
+        }
+
+        Page<Product> productPage = productRepository.search(keyword, pageable);
+        List<ProductResponse> responses = productPage.getContent().stream()
                 .map(this::mapToResponse)
-                .collect(Collectors.toList());
+                .toList();
 
-        return PageResponse.of(responses, page, size, total);
+        return PageResponse.of(responses, pageable.getPageNumber(), pageable.getPageSize(), productPage.getTotalElements());
     }
 
+    /**
+     * Get products within a price range with pagination.
+     * Validates that minPrice is not greater than maxPrice.
+     */
     @Override
     @Transactional(readOnly = true)
-    public PageResponse<ProductResponse> getProductsByPriceRange(BigDecimal minPrice, BigDecimal maxPrice, int page, int size) {
-        log.debug("Getting products by price range: {} - {} - page: {}, size: {}", minPrice, maxPrice, page, size);
-        List<Product> products = productRepository.findByPriceRange(minPrice, maxPrice, page, size);
-        long total = productRepository.countActive();
+    public PageResponse<ProductResponse> getProductsByPriceRange(BigDecimal minPrice, BigDecimal maxPrice, Pageable pageable) {
+        log.debug("Getting products by price range: {} - {}", minPrice, maxPrice);
 
-        List<ProductResponse> responses = products.stream()
+        if (minPrice == null || maxPrice == null) {
+            throw new IllegalArgumentException("Price range values cannot be null");
+        }
+        if (minPrice.compareTo(maxPrice) > 0) {
+            throw new IllegalArgumentException("minPrice cannot be greater than maxPrice");
+        }
+
+        Page<Product> productPage = productRepository.findByPriceBetween(minPrice, maxPrice, pageable);
+        List<ProductResponse> responses = productPage.getContent().stream()
                 .map(this::mapToResponse)
-                .collect(Collectors.toList());
+                .toList();
 
-        return PageResponse.of(responses, page, size, total);
+        return PageResponse.of(responses, pageable.getPageNumber(), pageable.getPageSize(), productPage.getTotalElements());
     }
 
+    /**
+     * Get products in stock with pagination.
+     */
     @Override
     @Transactional(readOnly = true)
-    public PageResponse<ProductResponse> getProductsInStock(int page, int size) {
-        log.debug("Getting products in stock - page: {}, size: {}", page, size);
-        List<Product> products = productRepository.findInStock(page, size);
-        long total = productRepository.countActive();
+    public PageResponse<ProductResponse> getProductsInStock(Pageable pageable) {
+        log.debug("Getting products in stock");
 
-        List<ProductResponse> responses = products.stream()
+        Page<Product> productPage = productRepository.findInStock(pageable);
+        List<ProductResponse> responses = productPage.getContent().stream()
                 .map(this::mapToResponse)
-                .collect(Collectors.toList());
+                .toList();
 
-        return PageResponse.of(responses, page, size, total);
+        return PageResponse.of(responses, pageable.getPageNumber(), pageable.getPageSize(), productPage.getTotalElements());
     }
 
+    /**
+     * Update an existing product.
+     * Supports partial updates — only non-null fields are applied.
+     * Uses JPA dirty checking — no explicit save() needed.
+     * Cache evicted after update to prevent stale data.
+     */
     @Override
     @Transactional
-    public ProductResponse updateProduct(UUID id, CreateProductRequest request) {
+    @CacheEvict(value = PRODUCTS_CACHE, allEntries = true)
+    public ProductResponse updateProduct(UUID id, UpdateProductRequest request) {
         log.info("Updating product with ID: {}", id);
 
-        Product existingProduct = productRepository.findById(id)
+        Product product = productRepository.findById(id)
                 .orElseThrow(() -> ResourceNotFoundException.forResource("Product", id));
 
-        // If categoryId provided, validate and set
         if (request.getCategoryId() != null) {
             if (!categoryRepository.existsById(request.getCategoryId())) {
                 throw ResourceNotFoundException.forResource("Category", request.getCategoryId());
             }
-            existingProduct.setCategoryId(request.getCategoryId());
+            product.setCategoryId(request.getCategoryId());
         }
 
-        // Only update fields if they are provided in the request (support partial updates)
-        if (request.getName() != null) existingProduct.setName(request.getName());
-        if (request.getDescription() != null) existingProduct.setDescription(request.getDescription());
-        if (request.getPrice() != null) existingProduct.setPrice(request.getPrice());
-        if (request.getStockQuantity() != null) existingProduct.setStockQuantity(request.getStockQuantity());
-        if (request.getIsActive() != null) existingProduct.setIsActive(request.getIsActive());
-        if (request.getImages() != null) existingProduct.setImages(request.getImages());
+        if (request.getName() != null) product.setName(request.getName());
+        if (request.getDescription() != null) product.setDescription(request.getDescription());
+        if (request.getPrice() != null) product.setPrice(request.getPrice());
+        if (request.getStockQuantity() != null) product.setStockQuantity(request.getStockQuantity());
+        if (request.getIsActive() != null) product.setIsActive(request.getIsActive());
+        if (request.getImages() != null) product.setImages(request.getImages());
 
-        Product updatedProduct = productRepository.update(existingProduct);
         log.info("Product updated successfully: {}", id);
-
-        ProductResponse response = mapToResponse(updatedProduct);
-
-        // Update id cache
-        Cache byIdCache = cacheManager.getCache(PRODUCTS_CACHE);
-        if (byIdCache != null) {
-            byIdCache.put("id:" + id, response);
-        }
-
-        // Clear list/search caches
-        evictCache();
-        evictCache();
-
-        return response;
+        return mapToResponse(product);
     }
 
+    /**
+     * Delete a product by ID.
+     * Cache evicted after deletion.
+     */
     @Override
     @Transactional
-    public ProductResponse updateProduct(UUID id, com.miracle.smart_ecommerce_jpa.domain.product.dto.UpdateProductRequest request) {
-        // Reuse the CreateProductRequest-based method logic but operate on UpdateProductRequest directly
-        log.info("Updating product (partial) with ID: {}", id);
-
-        Product existingProduct = productRepository.findById(id)
-                .orElseThrow(() -> ResourceNotFoundException.forResource("Product", id));
-
-        if (request.getCategoryId() != null) {
-            if (!categoryRepository.existsById(request.getCategoryId())) {
-                throw ResourceNotFoundException.forResource("Category", request.getCategoryId());
-            }
-            existingProduct.setCategoryId(request.getCategoryId());
-        }
-
-        if (request.getName() != null) existingProduct.setName(request.getName());
-        if (request.getDescription() != null) existingProduct.setDescription(request.getDescription());
-        if (request.getPrice() != null) existingProduct.setPrice(request.getPrice());
-        if (request.getStockQuantity() != null) existingProduct.setStockQuantity(request.getStockQuantity());
-        if (request.getIsActive() != null) existingProduct.setIsActive(request.getIsActive());
-        if (request.getImages() != null) existingProduct.setImages(request.getImages());
-
-        Product updatedProduct = productRepository.update(existingProduct);
-        log.info("Product (partial) updated successfully: {}", id);
-
-        ProductResponse response = mapToResponse(updatedProduct);
-
-        Cache byIdCache = cacheManager.getCache(PRODUCTS_CACHE);
-        if (byIdCache != null) {
-            byIdCache.put("id:" + id, response);
-        }
-
-        evictCache();
-        evictCache();
-
-        return response;
-    }
-
-    @Override
-    @Transactional
+    @CacheEvict(value = PRODUCTS_CACHE, allEntries = true)
     public void deleteProduct(UUID id) {
         log.info("Deleting product with ID: {}", id);
 
-        // ensure product exists
-        productRepository.findById(id)
-                .orElseThrow(() -> ResourceNotFoundException.forResource("Product", id));
-
-        productRepository.deleteById(id);
-        log.info("Product deleted successfully: {}", id);
-
-        // Evict from id cache
-        Cache byIdCache = cacheManager.getCache(PRODUCTS_CACHE);
-        if (byIdCache != null) {
-            byIdCache.evict("id:" + id);
+        if (!productRepository.existsById(id)) {
+            throw ResourceNotFoundException.forResource("Product", id);
         }
 
-        // Clear list/search caches
-        evictCache();
+        try {
+            productRepository.deleteById(id);
+            log.info("Product deleted successfully: {}", id);
+        } catch (DataIntegrityViolationException e) {
+            log.error("Cannot delete product {} — it may be referenced by existing orders", id, e);
+            throw new DataIntegrityViolationException("Cannot delete product as it is referenced by existing orders.");
+        }
     }
 
+    /**
+     * Activate a product.
+     * Uses existsById to avoid loading the full entity unnecessarily.
+     */
     @Override
     @Transactional
+    @CacheEvict(value = PRODUCTS_CACHE, allEntries = true)
     public void activateProduct(UUID id) {
         log.info("Activating product with ID: {}", id);
+        if (!productRepository.existsById(id)) {
+            throw ResourceNotFoundException.forResource("Product", id);
+        }
         productRepository.setActiveStatus(id, true);
-
-        // Evict caches - product status changed
-        evictProductCaches(id);
+        log.info("Product activated successfully: {}", id);
     }
 
+    /**
+     * Deactivate a product.
+     * Uses existsById to avoid loading the full entity unnecessarily.
+     */
     @Override
     @Transactional
+    @CacheEvict(value = PRODUCTS_CACHE, allEntries = true)
     public void deactivateProduct(UUID id) {
         log.info("Deactivating product with ID: {}", id);
+        if (!productRepository.existsById(id)) {
+            throw ResourceNotFoundException.forResource("Product", id);
+        }
         productRepository.setActiveStatus(id, false);
-
-        // Evict caches - product status changed
-        evictProductCaches(id);
+        log.info("Product deactivated successfully: {}", id);
     }
 
+    /**
+     * Update stock quantity for a product.
+     * Validates that quantity is not negative.
+     */
     @Override
     @Transactional
+    @CacheEvict(value = PRODUCTS_CACHE, allEntries = true)
     public void updateStock(UUID id, int quantity) {
-        log.info("Updating stock for product {} by {}", id, quantity);
-        productRepository.updateStock(id, quantity);
+        log.info("Updating stock for product: {} to quantity: {}", id, quantity);
 
-        // Evict caches - stock changed
-        evictProductCaches(id);
+        if (quantity < 0) {
+            throw new IllegalArgumentException("Stock quantity cannot be negative");
+        }
+        if (!productRepository.existsById(id)) {
+            throw ResourceNotFoundException.forResource("Product", id);
+        }
+
+        productRepository.updateStock(id, quantity);
+        log.info("Stock updated successfully for product: {}", id);
     }
 
+    /**
+     * Count total products.
+     */
     @Override
     @Transactional(readOnly = true)
     public long countProducts() {
@@ -335,36 +357,4 @@ public class ProductServiceImpl implements ProductService {
                 .updatedAt(product.getUpdatedAt())
                 .build();
     }
-
-    private ProductResponse mapToResponseWithCategory(Product product) {
-        // If needed later, populate category details here
-        return mapToResponse(product);
-    }
-
-    /**
-     * Evict the configured products cache (single cache used for products)
-     */
-    private void evictCache() {
-        Cache cache = cacheManager.getCache(PRODUCTS_CACHE);
-        if (cache != null) {
-            cache.clear();
-        }
-    }
-
-    /**
-     * Helper method to evict product from all caches
-     */
-    private void evictProductCaches(UUID productId) {
-        Cache byIdCache = cacheManager.getCache(PRODUCTS_CACHE);
-        if (byIdCache != null) {
-            byIdCache.evict("id:" + productId);
-        }
-
-        // Get product to evict SKU cache
-        productRepository.findById(productId).ifPresent(product -> {
-            // Clear list/search caches
-            evictCache();
-        });
-    }
 }
-

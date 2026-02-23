@@ -3,6 +3,8 @@ package com.miracle.smart_ecommerce_jpa.domain.product.service;
 import com.miracle.smart_ecommerce_jpa.common.response.PageResponse;
 import com.miracle.smart_ecommerce_jpa.domain.product.dto.CreateProductRequest;
 import com.miracle.smart_ecommerce_jpa.domain.product.dto.ProductResponse;
+import com.miracle.smart_ecommerce_jpa.domain.product.dto.UpdateProductRequest;
+import org.springframework.data.domain.Pageable;
 
 import java.math.BigDecimal;
 import java.util.UUID;
@@ -23,45 +25,39 @@ public interface ProductService {
     ProductResponse getProductById(UUID id);
 
     /**
-     * Get product by SKU
-     */
-    ProductResponse getProductBySku(String sku);
-
-    /**
      * Get all products with pagination
      */
-    PageResponse<ProductResponse> getAllProducts(int page, int size);
+    PageResponse<ProductResponse> getAllProducts(Pageable pageable);
 
     /**
      * Get active products with pagination
      */
-    PageResponse<ProductResponse> getActiveProducts(int page, int size);
+    PageResponse<ProductResponse> getActiveProducts(Pageable pageable);
 
     /**
-     * Get products by category
+     * Get products by category with pagination
      */
-    PageResponse<ProductResponse> getProductsByCategory(UUID categoryId, int page, int size);
+    PageResponse<ProductResponse> getProductsByCategory(UUID categoryId, Pageable pageable);
 
     /**
-     * Search products by keyword
+     * Search products by keyword with pagination
      */
-    PageResponse<ProductResponse> searchProducts(String keyword, int page, int size);
+    PageResponse<ProductResponse> searchProducts(String keyword, Pageable pageable);
 
     /**
-     * Get products by price range
+     * Get products by price range with pagination
      */
-    PageResponse<ProductResponse> getProductsByPriceRange(BigDecimal minPrice, BigDecimal maxPrice, int page, int size);
+    PageResponse<ProductResponse> getProductsByPriceRange(BigDecimal minPrice, BigDecimal maxPrice, Pageable pageable);
 
     /**
-     * Get products in stock
+     * Get products in stock with pagination
      */
-    PageResponse<ProductResponse> getProductsInStock(int page, int size);
+    PageResponse<ProductResponse> getProductsInStock(Pageable pageable);
 
     /**
      * Update product
      */
-    ProductResponse updateProduct(UUID id, CreateProductRequest request);
-    ProductResponse updateProduct(UUID id, com.miracle.smart_ecommerce_jpa.domain.product.dto.UpdateProductRequest request);
+    ProductResponse updateProduct(UUID id, UpdateProductRequest request);
 
     /**
      * Delete product
@@ -79,7 +75,7 @@ public interface ProductService {
     void deactivateProduct(UUID id);
 
     /**
-     * Update product stock
+     * Update product stock quantity
      */
     void updateStock(UUID id, int quantity);
 

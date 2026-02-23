@@ -3,6 +3,7 @@ package com.miracle.smart_ecommerce_jpa.domain.product.entity;
 import com.miracle.smart_ecommerce_jpa.domain.BaseModel;
 import com.miracle.smart_ecommerce_jpa.domain.category.entity.Category;
 import com.miracle.smart_ecommerce_jpa.domain.review.entity.ProductReview;
+import jakarta.persistence.*;
 import jakarta.validation.constraints.*;
 import lombok.*;
 import lombok.experimental.SuperBuilder;
@@ -13,9 +14,10 @@ import java.util.List;
 import java.util.UUID;
 
 /**
- * Product domain model (POJO) - represents product table.
- * No JPA annotations - used with raw JDBC.
+ * Product JPA entity - represents product table.
  */
+@Entity
+@Table(name = "product")
 @Data
 @NoArgsConstructor
 @AllArgsConstructor
@@ -24,37 +26,47 @@ import java.util.UUID;
 public class Product extends BaseModel {
 
     @NotNull(message = "Category ID is required")
+    @Column(name = "category_id", nullable = false)
     private UUID categoryId;
 
     @NotBlank(message = "Product name is required")
     @Size(min = 2, max = 255, message = "Product name must be between 2 and 255 characters")
+    @Column(name = "name", nullable = false, length = 255)
     private String name;
 
     @Size(max = 2000, message = "Description cannot exceed 2000 characters")
+    @Column(name = "description", length = 2000)
     private String description;
 
     @NotNull(message = "Price is required")
     @DecimalMin(value = "0.00", message = "Price must be non-negative")
     @Digits(integer = 10, fraction = 2, message = "Price format is invalid")
+    @Column(name = "price", nullable = false, precision = 19, scale = 2)
     private BigDecimal price;
 
     @NotNull(message = "Stock quantity is required")
     @Min(value = 0, message = "Stock quantity cannot be negative")
+    @Column(name = "stock_quantity", nullable = false)
     @Builder.Default
     private Integer stockQuantity = 0;
 
     @Builder.Default
+    @Column(name = "is_active")
     private Boolean isActive = true;
 
     // JSONB field stored as List<String> for image URLs
+    @Column(name = "images", columnDefinition = "jsonb")
     @Builder.Default
     private List<String> images = new ArrayList<>();
 
-    // Transient field for category (populated when needed)
-    private transient Category category;
+    // Relationships
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "category_id", referencedColumnName = "id", insertable = false, updatable = false)
+    private Category category;
 
+    @OneToMany(mappedBy = "product", cascade = CascadeType.ALL, fetch = FetchType.LAZY)
     @Builder.Default
-    private transient List<ProductReview> reviews = new ArrayList<>();
+    private List<ProductReview> reviews = new ArrayList<>();
 
     /**
      * Check if product is in stock

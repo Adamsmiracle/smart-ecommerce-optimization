@@ -1,4 +1,4 @@
-service:
+services:
   postgres:
     build: ./docker/postgres
     env_file:

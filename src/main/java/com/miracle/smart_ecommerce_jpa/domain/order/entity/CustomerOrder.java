@@ -2,76 +2,101 @@ package com.miracle.smart_ecommerce_jpa.domain.order.entity;
 
 import com.miracle.smart_ecommerce_jpa.domain.BaseModel;
 import com.miracle.smart_ecommerce_jpa.domain.user.entity.User;
-import jakarta.validation.constraints.*;
+import jakarta.persistence.*;
+import jakarta.validation.constraints.DecimalMin;
+import jakarta.validation.constraints.NotBlank;
+import jakarta.validation.constraints.NotNull;
+import jakarta.validation.constraints.Size;
 import lombok.*;
 import lombok.experimental.SuperBuilder;
+import org.hibernate.proxy.HibernateProxy;
 
 import java.math.BigDecimal;
 import java.time.OffsetDateTime;
-import java.util.ArrayList;
-import java.util.List;
-import java.util.Random;
-import java.util.UUID;
+import java.util.*;
 
 /**
- * Customer Order domain model (POJO) - represents customer_order table.
- * No JPA annotations - used with raw JDBC.
+ * Customer Order JPA entity - represents customer_order table.
  */
-@Data
+@Entity
+@Table(name = "customer_order")
+@Getter
+@Setter
+@ToString
 @NoArgsConstructor
 @AllArgsConstructor
 @SuperBuilder
-@EqualsAndHashCode(callSuper = true)
 public class CustomerOrder extends BaseModel {
 
     @NotNull(message = "User ID is required")
+    @Column(name = "user_id", nullable = false)
     private UUID userId;
 
     @NotBlank(message = "Order number is required")
     @Size(max = 50, message = "Order number cannot exceed 50 characters")
+    @Column(name = "order_number", nullable = false, unique = true, length = 50)
     private String orderNumber;
 
     @Size(max = 30, message = "Status cannot exceed 30 characters")
+    @Column(name = "status", length = 30)
     @Builder.Default
     private String status = OrderStatus.PENDING.name().toLowerCase();
 
+    @Column(name = "payment_method_id")
     private UUID paymentMethodId;
 
     @Size(max = 30, message = "Payment status cannot exceed 30 characters")
+    @Column(name = "payment_status", length = 30)
     @Builder.Default
     private String paymentStatus = PaymentStatus.PENDING.name().toLowerCase();
 
+    @Column(name = "shipping_method_id")
     private UUID shippingMethodId;
 
     @NotNull(message = "Subtotal is required")
     @DecimalMin(value = "0.00", message = "Subtotal must be non-negative")
+    @Column(name = "subtotal", nullable = false, precision = 19, scale = 2)
     private BigDecimal subtotal;
 
     @NotNull(message = "Total is required")
     @DecimalMin(value = "0.00", message = "Total must be non-negative")
+    @Column(name = "total", nullable = false, precision = 19, scale = 2)
     private BigDecimal total;
 
-    // Transient fields for relationships (populated when needed)
-    private transient User user;
-    private transient PaymentMethod paymentMethod;
-    private transient ShippingMethod shippingMethod;
+    // Relationships
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "user_id", referencedColumnName = "id", insertable = false, updatable = false)
+    @ToString.Exclude
+    private User user;
 
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "payment_method_id", referencedColumnName = "id", insertable = false, updatable = false)
+    @ToString.Exclude
+    private PaymentMethod paymentMethod;
+
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "shipping_method_id", referencedColumnName = "id", insertable = false, updatable = false)
+    @ToString.Exclude
+    private ShippingMethod shippingMethod;
+
+    @OneToMany(mappedBy = "order", cascade = CascadeType.ALL, orphanRemoval = true, fetch = FetchType.LAZY)
     @Builder.Default
-    private transient List<OrderItem> orderItems = new ArrayList<>();
+    @ToString.Exclude
+    private List<OrderItem> orderItems = new ArrayList<>();
 
     /**
-     * Generate unique order number
+     * Generate unique order number using UUID to avoid collisions under high load
      */
     public static String generateOrderNumber() {
         String timestamp = java.time.format.DateTimeFormatter
                 .ofPattern("yyyyMMdd")
                 .format(OffsetDateTime.now());
-        String randomPart = String.format("%06d", new Random().nextInt(999999));
-        return "ORD-" + timestamp + "-" + randomPart;
+        String uniquePart = UUID.randomUUID().toString().replace("-", "").substring(0, 8).toUpperCase();
+        return "ORD-" + timestamp + "-" + uniquePart;
     }
 
     /**
-     * Add order item
+     * Add order item and keep both sides of the hybrid mapping in sync
      */
     public void addOrderItem(OrderItem item) {
         if (item == null) {
@@ -82,12 +107,13 @@ public class CustomerOrder extends BaseModel {
         }
         orderItems.add(item);
         item.setOrderId(this.getId());
+        item.setOrder(this);
     }
 
     /**
-     * Calculate totals
+     * Calculate totals - shippingCost passed in to avoid lazy-loading shippingMethod outside a transaction
      */
-    public void calculateTotals() {
+    public void calculateTotals(BigDecimal shippingCost) {
         if (orderItems == null || orderItems.isEmpty()) {
             this.subtotal = BigDecimal.ZERO;
         } else {
@@ -96,13 +122,7 @@ public class CustomerOrder extends BaseModel {
                     .reduce(BigDecimal.ZERO, BigDecimal::add);
         }
 
-        // Calculate total as subtotal + shipping cost
-        BigDecimal shippingCost = BigDecimal.ZERO;
-        if (shippingMethod != null && shippingMethod.getPrice() != null) {
-            shippingCost = shippingMethod.getPrice();
-        }
-        
-        this.total = subtotal.add(shippingCost);
+        this.total = subtotal.add(shippingCost != null ? shippingCost : BigDecimal.ZERO);
     }
 
     /**
@@ -120,8 +140,8 @@ public class CustomerOrder extends BaseModel {
      */
     public boolean canBeCancelled() {
         return OrderStatus.PENDING.name().equalsIgnoreCase(status) ||
-               OrderStatus.CONFIRMED.name().equalsIgnoreCase(status) ||
-               OrderStatus.PROCESSING.name().equalsIgnoreCase(status);
+                OrderStatus.CONFIRMED.name().equalsIgnoreCase(status) ||
+                OrderStatus.PROCESSING.name().equalsIgnoreCase(status);
     }
 
     /**
@@ -148,5 +168,21 @@ public class CustomerOrder extends BaseModel {
         FAILED,
         REFUNDED,
         PARTIALLY_REFUNDED
+    }
+
+    @Override
+    public final boolean equals(Object o) {
+        if (this == o) return true;
+        if (o == null) return false;
+        Class<?> oEffectiveClass = o instanceof HibernateProxy ? ((HibernateProxy) o).getHibernateLazyInitializer().getPersistentClass() : o.getClass();
+        Class<?> thisEffectiveClass = this instanceof HibernateProxy ? ((HibernateProxy) this).getHibernateLazyInitializer().getPersistentClass() : this.getClass();
+        if (thisEffectiveClass != oEffectiveClass) return false;
+        CustomerOrder that = (CustomerOrder) o;
+        return getId() != null && Objects.equals(getId(), that.getId());
+    }
+
+    @Override
+    public final int hashCode() {
+        return this instanceof HibernateProxy ? ((HibernateProxy) this).getHibernateLazyInitializer().getPersistentClass().hashCode() : getClass().hashCode();
     }
 }

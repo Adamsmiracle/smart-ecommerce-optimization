@@ -4,6 +4,8 @@ import com.miracle.smart_ecommerce_jpa.common.response.PageResponse;
 import com.miracle.smart_ecommerce_jpa.domain.review.dto.CreateReviewRequest;
 import com.miracle.smart_ecommerce_jpa.domain.review.dto.ReviewResponse;
 import com.miracle.smart_ecommerce_jpa.domain.review.service.ReviewService;
+import org.springframework.data.domain.PageRequest;
+import org.springframework.data.domain.Pageable;
 import lombok.RequiredArgsConstructor;
 import org.springframework.graphql.data.method.annotation.Argument;
 import org.springframework.graphql.data.method.annotation.MutationMapping;
@@ -29,12 +31,14 @@ public class ReviewResolver {
 
     @QueryMapping
     public PageResponse<ReviewResponse> reviewsByProduct(@Argument UUID productId, @Argument int page, @Argument int size) {
-        return reviewService.getReviewsByProductId(productId, page, size);
+        Pageable pageable = PageRequest.of(page, size);
+        return reviewService.getReviewsByProductId(productId, pageable);
     }
 
     @QueryMapping
     public PageResponse<ReviewResponse> reviewsByUser(@Argument UUID userId, @Argument int page, @Argument int size) {
-        return reviewService.getReviewsByUserId(userId, page, size);
+        Pageable pageable = PageRequest.of(page, size);
+        return reviewService.getReviewsByUserId(userId, pageable);
     }
 
     @QueryMapping

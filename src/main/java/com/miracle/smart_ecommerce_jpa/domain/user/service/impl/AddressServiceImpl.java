@@ -16,7 +16,6 @@ import org.springframework.transaction.annotation.Transactional;
 
 import java.util.List;
 import java.util.UUID;
-import java.util.stream.Collectors;
 
 import static com.miracle.smart_ecommerce_jpa.config.CacheConfig.*;
 
@@ -28,24 +27,21 @@ import static com.miracle.smart_ecommerce_jpa.config.CacheConfig.*;
 @Service
 public class AddressServiceImpl implements AddressService {
 
-
     private final AddressRepository addressRepository;
     private final UserRepository userRepository;
 
+    /**
+     * Create a new address for a user.
+     * Cache is evicted to ensure stale address lists are refreshed.
+     */
     @Override
     @Transactional
     @CacheEvict(value = ADDRESSES_CACHE, allEntries = true)
     public AddressResponse createAddress(CreateAddressRequest request) {
         log.info("Creating address for user: {}", request.getUserId());
 
-        // Verify user exists
         if (!userRepository.existsById(request.getUserId())) {
             throw ResourceNotFoundException.forResource("User", request.getUserId());
-        }
-
-        // If this is set as default, unset other defaults for this user and type
-        if (Boolean.TRUE.equals(request.getIsDefault())) {
-            addressRepository.clearDefaultForUserAndType(request.getUserId(), request.getAddressType());
         }
 
         Address address = Address.builder()
@@ -56,14 +52,18 @@ public class AddressServiceImpl implements AddressService {
                 .country(request.getCountry())
                 .postalCode(request.getPostalCode())
                 .addressType(request.getAddressType())
+                .isDefault(false)
                 .build();
 
-        Address savedAddress = addressRepository.save(address);
-        log.info("Address created successfully with ID: {} and createdAt: {}", savedAddress.getId(), savedAddress.getCreatedAt());
-
-        return mapToResponse(savedAddress);
+        Address saved = addressRepository.save(address);
+        log.info("Address created with ID: {} at: {}", saved.getId(), saved.getCreatedAt());
+        return mapToResponse(saved);
     }
 
+    /**
+     * Get address by ID.
+     * Result is cached by ID to avoid repeated DB lookups.
+     */
     @Override
     @Transactional(readOnly = true)
     @Cacheable(value = ADDRESSES_CACHE, key = "'id:' + #id")
@@ -74,62 +74,76 @@ public class AddressServiceImpl implements AddressService {
         return mapToResponse(address);
     }
 
+    /**
+     * Get all addresses - admin use only, no caching due to potentially large result set.
+     */
     @Override
     @Transactional(readOnly = true)
     public List<AddressResponse> getAllAddresses() {
         log.debug("Getting all addresses");
         return addressRepository.findAll().stream()
                 .map(this::mapToResponse)
-                .collect(Collectors.toList());
+                .toList();
     }
 
+    /**
+     * Get all addresses for a specific user.
+     */
     @Override
     @Transactional(readOnly = true)
     public List<AddressResponse> getAddressesByUserId(UUID userId) {
         log.debug("Getting addresses for user: {}", userId);
         List<AddressResponse> addresses = addressRepository.findByUserId(userId).stream()
                 .map(this::mapToResponse)
-                .collect(Collectors.toList());
+                .toList();
         log.info("Found {} addresses for userId: {}", addresses.size(), userId);
         return addresses;
     }
 
+    /**
+     * Get addresses for a user filtered by type (e.g. shipping, billing).
+     */
     @Override
     @Transactional(readOnly = true)
     public List<AddressResponse> getAddressesByUserIdAndType(UUID userId, String addressType) {
         log.debug("Getting {} addresses for user: {}", addressType, userId);
-        List<AddressResponse> addresses = addressRepository.findByUserIdAndType(userId, addressType).stream()
+        List<AddressResponse> addresses = addressRepository.findByUserIdAndAddressType(userId, addressType).stream()
                 .map(this::mapToResponse)
-                .collect(Collectors.toList());
+                .toList();
         log.info("Found {} {} addresses for userId: {}", addresses.size(), addressType, userId);
         return addresses;
     }
 
-
-
+    /**
+     * Update an existing address.
+     * Uses JPA dirty checking — no explicit save() needed after mutation.
+     * Cache is evicted to prevent stale data.
+     */
     @Override
     @Transactional
     @CacheEvict(value = ADDRESSES_CACHE, allEntries = true)
     public AddressResponse updateAddress(UUID id, CreateAddressRequest request) {
         log.info("Updating address: {}", id);
 
-        Address existingAddress = addressRepository.findById(id)
+        Address address = addressRepository.findById(id)
                 .orElseThrow(() -> ResourceNotFoundException.forResource("Address", id));
 
+        address.setAddressLine(request.getAddressLine());
+        address.setCity(request.getCity());
+        address.setRegion(request.getRegion());
+        address.setCountry(request.getCountry());
+        address.setPostalCode(request.getPostalCode());
+        address.setAddressType(request.getAddressType());
 
-        existingAddress.setAddressLine(request.getAddressLine());
-        existingAddress.setCity(request.getCity());
-        existingAddress.setRegion(request.getRegion());
-        existingAddress.setCountry(request.getCountry());
-        existingAddress.setPostalCode(request.getPostalCode());
-        existingAddress.setAddressType(request.getAddressType());
-
-        Address updatedAddress = addressRepository.update(existingAddress);
         log.info("Address updated successfully: {}", id);
-
-        return mapToResponse(updatedAddress);
+        return mapToResponse(address);
     }
 
+    /**
+     * Set an address as the default for its user.
+     * Clears any existing default first to ensure only one default per user.
+     * Both operations run in the same transaction for consistency.
+     */
     @Override
     @Transactional
     @CacheEvict(value = ADDRESSES_CACHE, allEntries = true)
@@ -139,25 +153,27 @@ public class AddressServiceImpl implements AddressService {
         Address address = addressRepository.findById(id)
                 .orElseThrow(() -> ResourceNotFoundException.forResource("Address", id));
 
-        // Clear other defaults for this user and type
-        addressRepository.clearDefaultForUserAndType(address.getUserId(), address.getAddressType());
+        // Clear existing default for this user before setting the new one
+        addressRepository.clearDefaultByUserId(address.getUserId());
+        addressRepository.setAsDefault(id);
 
-        // Set this address as default
-        Address updatedAddress = addressRepository.update(address);
-
-        log.info("Default address set successfully: {}", id);
-        return mapToResponse(updatedAddress);
+        address.setIsDefault(true);
+        log.info("Address {} set as default for user {}", id, address.getUserId());
+        return mapToResponse(address);
     }
 
+    /**
+     * Delete an address by ID.
+     * Cache is evicted after deletion.
+     */
     @Override
     @Transactional
     @CacheEvict(value = ADDRESSES_CACHE, allEntries = true)
     public void deleteAddress(UUID id) {
         log.info("Deleting address: {}", id);
-        if (!addressRepository.existsById(id)) {
-            throw ResourceNotFoundException.forResource("Address", id);
-        }
-        addressRepository.deleteById(id);
+        Address address = addressRepository.findById(id)
+                .orElseThrow(() -> ResourceNotFoundException.forResource("Address", id));
+        addressRepository.delete(address);
         log.info("Address deleted successfully: {}", id);
     }
 
@@ -175,7 +191,7 @@ public class AddressServiceImpl implements AddressService {
                 .country(address.getCountry())
                 .postalCode(address.getPostalCode())
                 .addressType(address.getAddressType())
-                // createdAt is already an OffsetDateTime in BaseModel; guard against null
+                .isDefault(address.getIsDefault())
                 .createdAt(address.getCreatedAt())
                 .build();
     }

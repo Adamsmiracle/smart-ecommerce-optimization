@@ -3,6 +3,7 @@ package com.miracle.smart_ecommerce_jpa.domain.review.service;
 import com.miracle.smart_ecommerce_jpa.common.response.PageResponse;
 import com.miracle.smart_ecommerce_jpa.domain.review.dto.CreateReviewRequest;
 import com.miracle.smart_ecommerce_jpa.domain.review.dto.ReviewResponse;
+import org.springframework.data.domain.Pageable;
 
 import java.util.UUID;
 
@@ -24,17 +25,17 @@ public interface ReviewService {
     /**
      * Get all reviews for a product
      */
-    PageResponse<ReviewResponse> getReviewsByProductId(UUID productId, int page, int size);
+    PageResponse<ReviewResponse> getReviewsByProductId(UUID productId, Pageable pageable);
 
     /**
      * Get all reviews by a user
      */
-    PageResponse<ReviewResponse> getReviewsByUserId(UUID userId, int page, int size);
+    PageResponse<ReviewResponse> getReviewsByUserId(UUID userId, Pageable pageable);
 
     /**
      * Get paginated list of all reviews
      */
-    PageResponse<ReviewResponse> getAllReviews(int page, int size);
+    PageResponse<ReviewResponse> getAllReviews(Pageable pageable);
 
     /**
      * Get average rating for a product

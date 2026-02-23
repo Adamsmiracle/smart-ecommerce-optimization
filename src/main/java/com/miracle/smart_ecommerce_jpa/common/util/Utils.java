@@ -16,9 +16,9 @@ import java.util.UUID;
  * Utility class for JDBC operations.
  * Provides helper methods for extracting values from ResultSet.
  */
-public final class JdbcUtils {
+public final class Utils {
 
-    private JdbcUtils() {
+    private Utils() {
         // Utility class, prevent instantiation
     }
 

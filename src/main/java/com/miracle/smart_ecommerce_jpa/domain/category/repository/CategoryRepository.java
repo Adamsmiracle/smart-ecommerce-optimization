@@ -1,66 +1,35 @@
 package com.miracle.smart_ecommerce_jpa.domain.category.repository;
 
 import com.miracle.smart_ecommerce_jpa.domain.category.entity.Category;
+import org.springframework.data.jpa.repository.JpaRepository;
+import org.springframework.data.jpa.repository.Query;
+import org.springframework.stereotype.Repository;
 
 import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
 
 /**
- * Repository interface for Category domain model.
- * Defines data access operations for categories.
+ * JPA Repository interface for Category domain model.
  */
-public interface CategoryRepository {
-
-    /**
-     * Save a new category
-     */
-    Category save(Category category);
-
-    /**
-     * Update an existing category
-     */
-    Category update(Category category);
-
-    /**
-     * Find category by ID
-     */
-    Optional<Category> findById(UUID id);
+@Repository
+public interface CategoryRepository extends JpaRepository<Category, UUID> {
 
     /**
      * Find category by name
      */
-    Optional<Category> findByName(String name);
-
-    /**
-     * Find all categories
-     */
-    List<Category> findAll();
-
-    /**
-     * Find subcategories by parent ID
-     */
-    List<Category> findByParentId(UUID parentId);
-
-    /**
-     * Delete category by ID
-     */
-    void deleteById(UUID id);
-
-    /**
-     * Check if category exists by ID
-     */
-    boolean existsById(UUID id);
+    Optional<Category> findByCategoryName(String categoryName);
 
     /**
      * Check if category name exists
      */
-    boolean existsByName(String name);
+    boolean existsByCategoryName(String categoryName);
 
     /**
-     * Count total categories
+     * Fetch all categories with their product counts in a single query.
+     * Returns Object[] where [0] is Category and [1] is Long product count.
+     * Avoids N+1 queries when building category list responses.
      */
-    long count();
-
+    @Query("SELECT c, COUNT(p) FROM Category c LEFT JOIN Product p ON p.categoryId = c.id GROUP BY c")
+    List<Object[]> findAllWithProductCount();
 }
-

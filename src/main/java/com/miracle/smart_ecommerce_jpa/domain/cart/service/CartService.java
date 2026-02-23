@@ -3,6 +3,7 @@ package com.miracle.smart_ecommerce_jpa.domain.cart.service;
 import com.miracle.smart_ecommerce_jpa.common.response.PageResponse;
 import com.miracle.smart_ecommerce_jpa.domain.cart.dto.AddToCartRequest;
 import com.miracle.smart_ecommerce_jpa.domain.cart.dto.CartResponse;
+import org.springframework.data.domain.Pageable;
 
 import java.util.UUID;
 
@@ -12,9 +13,9 @@ import java.util.UUID;
 public interface CartService {
 
     /**
-     * Get all carts with pagination
+     * Get all carts with pagination - admin use
      */
-    PageResponse<CartResponse> getAllCarts(int page, int size);
+    PageResponse<CartResponse> getAllCarts(Pageable pageable);
 
     /**
      * Get cart by user ID (creates one if not exists)
@@ -37,13 +38,12 @@ public interface CartService {
     CartResponse removeItemFromCart(UUID userId, UUID itemId);
 
     /**
-     * Clear cart
+     * Clear all items from cart
      */
     void clearCart(UUID userId);
 
     /**
-     * Get cart item count
+     * Get total item count in cart
      */
     int getCartItemCount(UUID userId);
 }
-

@@ -4,6 +4,7 @@ import com.miracle.smart_ecommerce_jpa.common.response.PageResponse;
 import com.miracle.smart_ecommerce_jpa.domain.user.dto.request.CreateUserRequest;
 import com.miracle.smart_ecommerce_jpa.domain.user.dto.request.UpdateUserRequest;
 import com.miracle.smart_ecommerce_jpa.domain.user.dto.response.UserResponse;
+import org.springframework.data.domain.Pageable;
 
 import java.util.UUID;
 
@@ -30,12 +31,12 @@ public interface UserService {
     /**
      * Get all users with pagination
      */
-    PageResponse<UserResponse> getAllUsers(int page, int size);
+    PageResponse<UserResponse> getAllUsers(Pageable pageable);
 
     /**
      * Search users by keyword
      */
-    PageResponse<UserResponse> searchUsers(String keyword, int page, int size);
+    PageResponse<UserResponse> searchUsers(String keyword, Pageable pageable);
 
     /**
      * Update user

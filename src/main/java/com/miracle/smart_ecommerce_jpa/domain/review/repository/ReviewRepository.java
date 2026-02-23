@@ -1,43 +1,48 @@
 package com.miracle.smart_ecommerce_jpa.domain.review.repository;
 
 import com.miracle.smart_ecommerce_jpa.domain.review.entity.ProductReview;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
+import org.springframework.data.jpa.repository.JpaRepository;
+import org.springframework.data.jpa.repository.Query;
+import org.springframework.data.repository.query.Param;
+import org.springframework.stereotype.Repository;
 
 import java.util.List;
-import java.util.Optional;
 import java.util.UUID;
 
 /**
- * Repository interface for Product Review operations.
+ * JPA Repository interface for ProductReview domain model.
  */
-public interface ReviewRepository {
-
-    ProductReview save(ProductReview review);
-
-    ProductReview update(ProductReview review);
-
-    Optional<ProductReview> findById(UUID id);
-
-    List<ProductReview> findByProductId(UUID productId, int page, int size);
-
-    List<ProductReview> findByUserId(UUID userId, int page, int size);
+@Repository
+public interface ReviewRepository extends JpaRepository<ProductReview, UUID> {
 
     /**
-     * Find all reviews (paginated)
+     * Find all reviews for a product with pagination
      */
-    List<ProductReview> findAll(int page, int size);
+    Page<ProductReview> findByProductId(UUID productId, Pageable pageable);
 
     /**
-     * Count all reviews
+     * Find all reviews by a user with pagination
      */
-    long countAll();
+    Page<ProductReview> findByUserId(UUID userId, Pageable pageable);
 
-    Double getAverageRatingByProductId(UUID productId);
+    /**
+     * Get average rating for a product
+     */
+    @Query("SELECT AVG(r.rating) FROM ProductReview r WHERE r.productId = :productId")
+    Double getAverageRatingByProductId(@Param("productId") UUID productId);
 
+    /**
+     * Count reviews for a product
+     */
     long countByProductId(UUID productId);
 
-    boolean existsById(UUID id);
+    @Query("SELECT r.rating, COUNT(r) FROM ProductReview r WHERE r.productId = :productId GROUP BY r.rating")
+    List<Object[]> getRatingDistributionByProductId(@Param("productId") UUID productId);
 
+    /**
+     * Check if a user has already reviewed a product
+     */
     boolean existsByUserIdAndProductId(UUID userId, UUID productId);
-
-    void deleteById(UUID id);
 }

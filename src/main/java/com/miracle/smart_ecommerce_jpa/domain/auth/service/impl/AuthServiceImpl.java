@@ -31,7 +31,7 @@ public class AuthServiceImpl implements AuthService {
 
         String normalizedEmail = email.trim();
 
-        Optional<User> maybeUser = userRepository.findByEmail(normalizedEmail);
+        Optional<User> maybeUser = userRepository.findByEmailAddress(normalizedEmail);
         if (maybeUser.isEmpty()) {
             log.debug("Authentication failed: user not found for email={}", normalizedEmail);
             return null;

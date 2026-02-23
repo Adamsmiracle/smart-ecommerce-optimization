@@ -11,6 +11,8 @@ import io.swagger.v3.oas.annotations.Parameter;
 import io.swagger.v3.oas.annotations.responses.ApiResponses;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.Valid;
+import org.springframework.data.domain.Pageable;
+import org.springframework.data.web.PageableDefault;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
@@ -67,9 +69,8 @@ public class UserController {
     @GetMapping
     @Operation(summary = "Get all users", description = "Retrieves all users with pagination")
     public ResponseEntity<ApiResponse<PageResponse<UserResponse>>> getAllUsers(
-            @Parameter(description = "Page number (0-based)") @RequestParam(defaultValue = "0") int page,
-            @Parameter(description = "Page size") @RequestParam(defaultValue = "10") int size) {
-        PageResponse<UserResponse> users = userService.getAllUsers(page, size);
+            @PageableDefault(size = 10) Pageable pageable) {
+        PageResponse<UserResponse> users = userService.getAllUsers(pageable);
         return ResponseEntity.ok(ApiResponse.success(users));
     }
 
@@ -77,9 +78,8 @@ public class UserController {
     @Operation(summary = "Search users", description = "Search users by keyword (name or email)")
     public ResponseEntity<ApiResponse<PageResponse<UserResponse>>> searchUsers(
             @Parameter(description = "Search keyword") @RequestParam String keyword,
-            @Parameter(description = "Page number (0-based)") @RequestParam(defaultValue = "0") int page,
-            @Parameter(description = "Page size") @RequestParam(defaultValue = "10") int size) {
-        PageResponse<UserResponse> users = userService.searchUsers(keyword, page, size);
+            @PageableDefault(size = 10) Pageable pageable) {
+        PageResponse<UserResponse> users = userService.searchUsers(keyword, pageable);
         return ResponseEntity.ok(ApiResponse.success(users));
     }
 

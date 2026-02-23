@@ -10,20 +10,37 @@ import com.miracle.smart_ecommerce_jpa.domain.category.repository.CategoryReposi
 import com.miracle.smart_ecommerce_jpa.domain.product.repository.ProductRepository;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
-import org.springframework.cache.Cache;
-import org.springframework.cache.CacheManager;
+import org.springframework.cache.annotation.CacheEvict;
+import org.springframework.cache.annotation.CachePut;
 import org.springframework.cache.annotation.Cacheable;
+import org.springframework.cache.annotation.Caching;
+import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.util.List;
 import java.util.UUID;
-import java.util.stream.Collectors;
 
 import static com.miracle.smart_ecommerce_jpa.config.CacheConfig.*;
 
 /**
- * Implementation of CategoryService using raw JDBC.
+ * Implementation of CategoryService using Spring Data JPA.
+ *
+ * Transaction strategy:
+ * - Read operations use readOnly = true for performance
+ * - Write operations use default REQUIRED propagation
+ * - Dirty checking handles updates without explicit save()
+ *
+ * Cache strategy:
+ * - Individual categories cached by ID
+ * - Full category list cached separately
+ * - All entries evicted on create, update, and delete
+ *
+ * Exception strategy:
+ * - ResourceNotFoundException for missing entities
+ * - DuplicateResourceException for duplicate category names
+ * - BadRequestException when deleting a category with associated products
+ * - DataIntegrityViolationException caught as safety net for DB constraint violations
  */
 @Service
 @RequiredArgsConstructor
@@ -32,39 +49,44 @@ public class CategoryServiceImpl implements CategoryService {
 
     private final CategoryRepository categoryRepository;
     private final ProductRepository productRepository;
-    private final CacheManager cacheManager;
 
+    /**
+     * Create a new category.
+     * Checks for duplicate name before saving.
+     * Result cached by ID after creation. All list caches evicted.
+     */
     @Override
     @Transactional
+    @Caching(
+            put = { @CachePut(value = CATEGORIES_CACHE, key = "'id:' + #result.id") },
+            evict = { @CacheEvict(value = CATEGORIES_CACHE, allEntries = true) }
+    )
     public CategoryResponse createCategory(CreateCategoryRequest request) {
         log.info("Creating category: {}", request.getCategoryName());
 
-        // Check if category name already exists
-        if (categoryRepository.existsByName(request.getCategoryName())) {
+        if (categoryRepository.existsByCategoryName(request.getCategoryName())) {
             throw new DuplicateResourceException("Category", "name", request.getCategoryName());
         }
 
-        Category category = Category.builder()
-                .categoryName(request.getCategoryName())
-                .build();
+        try {
+            Category category = Category.builder()
+                    .categoryName(request.getCategoryName())
+                    .build();
 
-        Category savedCategory = categoryRepository.save(category);
-        log.info("Category created successfully with ID: {}", savedCategory.getId());
+            Category saved = categoryRepository.save(category);
+            log.info("Category created successfully with ID: {}", saved.getId());
+            return mapToResponse(saved);
 
-        CategoryResponse response = mapToResponse(savedCategory);
-
-        // Update cache with new category
-        Cache byIdCache = cacheManager.getCache(CATEGORIES_CACHE);
-        if (byIdCache != null) {
-            byIdCache.put("id:" + savedCategory.getId(), response);
+        } catch (DataIntegrityViolationException e) {
+            log.error("Data integrity violation while creating category: {}", request.getCategoryName(), e);
+            throw new DataIntegrityViolationException("Failed to create category: " + e.getMessage());
         }
-
-        // Clear list cache
-        evictCache();
-
-        return response;
     }
 
+    /**
+     * Get category by ID.
+     * Result cached by ID.
+     */
     @Override
     @Transactional(readOnly = true)
     @Cacheable(value = CATEGORIES_CACHE, key = "'id:' + #id")
@@ -72,55 +94,64 @@ public class CategoryServiceImpl implements CategoryService {
         log.debug("Getting category by ID: {}", id);
         Category category = categoryRepository.findById(id)
                 .orElseThrow(() -> ResourceNotFoundException.forResource("Category", id));
-        return mapToResponseWithDetails(category);
+        return mapToResponse(category);
     }
 
+    /**
+     * Get all categories with product counts.
+     * Uses a single JOIN query to fetch categories and their product counts
+     * in one DB round-trip, avoiding N+1 queries.
+     */
     @Override
     @Transactional(readOnly = true)
     public List<CategoryResponse> getAllCategories() {
         log.debug("Getting all categories");
-        return categoryRepository.findAll().stream()
-                .map(this::mapToResponse)
-                .collect(Collectors.toList());
+        return categoryRepository.findAllWithProductCount().stream()
+                .map(row -> {
+                    Category category = (Category) row[0];
+                    long productCount = (Long) row[1];
+                    return CategoryResponse.builder()
+                            .id(category.getId())
+                            .categoryName(category.getCategoryName())
+                            .productCount(productCount)
+                            .build();
+                })
+                .toList();
     }
 
+    /**
+     * Update an existing category.
+     * Checks for duplicate name if name is being changed.
+     * Uses JPA dirty checking — no explicit save() needed.
+     * All cache entries evicted after update.
+     */
     @Override
     @Transactional
+    @CacheEvict(value = CATEGORIES_CACHE, allEntries = true)
     public CategoryResponse updateCategory(UUID id, CreateCategoryRequest request) {
         log.info("Updating category with ID: {}", id);
 
-        Category existingCategory = categoryRepository.findById(id)
+        Category category = categoryRepository.findById(id)
                 .orElseThrow(() -> ResourceNotFoundException.forResource("Category", id));
 
-        // Check if name is being changed to an existing one
-        if (!existingCategory.getCategoryName().equals(request.getCategoryName())
-                && categoryRepository.existsByName(request.getCategoryName())) {
+        if (!category.getCategoryName().equals(request.getCategoryName())
+                && categoryRepository.existsByCategoryName(request.getCategoryName())) {
             throw new DuplicateResourceException("Category", "name", request.getCategoryName());
         }
 
-        // Apply the requested change
-        existingCategory.setCategoryName(request.getCategoryName());
-
-        Category updatedCategory = categoryRepository.update(existingCategory);
+        category.setCategoryName(request.getCategoryName());
         log.info("Category updated successfully: {}", id);
-
-        // build response directly
-        CategoryResponse response = mapToResponse(updatedCategory);
-
-        // Update id cache
-        Cache byIdCache = cacheManager.getCache(CATEGORIES_CACHE);
-        if (byIdCache != null) {
-            byIdCache.put("id:" + id, response);
-        }
-
-        // Clear list cache
-        evictCache();
-
-        return response;
+        return mapToResponse(category);
     }
 
+    /**
+     * Delete a category.
+     * Prevents deletion if the category has associated products.
+     * All cache entries evicted after deletion.
+     */
     @Override
     @Transactional
+    @CacheEvict(value = CATEGORIES_CACHE, allEntries = true)
     public void deleteCategory(UUID id) {
         log.info("Deleting category with ID: {}", id);
 
@@ -128,24 +159,22 @@ public class CategoryServiceImpl implements CategoryService {
             throw ResourceNotFoundException.forResource("Category", id);
         }
 
-        // Check if category has products
         if (productRepository.countByCategoryId(id) > 0) {
             throw new BadRequestException("Cannot delete category with associated products");
         }
 
-
-        categoryRepository.deleteById(id);
-        log.info("Category deleted successfully: {}", id);
-
-        // Evict from id cache
-        Cache byIdCache = cacheManager.getCache(CATEGORIES_CACHE);
-        if (byIdCache != null) {
-            byIdCache.evict("id:" + id);
+        try {
+            categoryRepository.deleteById(id);
+            log.info("Category deleted successfully: {}", id);
+        } catch (DataIntegrityViolationException e) {
+            log.error("Data integrity violation while deleting category: {}", id, e);
+            throw new DataIntegrityViolationException("Cannot delete category due to existing references: " + e.getMessage());
         }
-
-        // Clear list cache
-        evictCache();
     }
+
+    // ========================================================================
+    // Helper Methods
+    // ========================================================================
 
     private CategoryResponse mapToResponse(Category category) {
         return CategoryResponse.builder()
@@ -153,19 +182,5 @@ public class CategoryServiceImpl implements CategoryService {
                 .categoryName(category.getCategoryName())
                 .productCount(productRepository.countByCategoryId(category.getId()))
                 .build();
-    }
-
-    private CategoryResponse mapToResponseWithDetails(Category category) {
-        return mapToResponse(category);
-    }
-
-    /**
-     * Helper method to evict all entries from a cache
-     */
-    private void evictCache() {
-        Cache cache = cacheManager.getCache(CATEGORIES_CACHE);
-        if (cache != null) {
-            cache.clear();
-        }
     }
 }

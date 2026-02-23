@@ -4,6 +4,7 @@ import com.miracle.smart_ecommerce_jpa.common.response.PageResponse;
 import com.miracle.smart_ecommerce_jpa.domain.order.dto.CreateOrderRequest;
 import com.miracle.smart_ecommerce_jpa.domain.order.dto.OrderResponse;
 import com.miracle.smart_ecommerce_jpa.domain.order.dto.UpdateOrderRequest;
+import org.springframework.data.domain.Pageable;
 
 import java.util.UUID;
 
@@ -30,17 +31,17 @@ public interface OrderService {
     /**
      * Get all orders with pagination
      */
-    PageResponse<OrderResponse> getAllOrders(int page, int size);
+    PageResponse<OrderResponse> getAllOrders(Pageable pageable);
 
     /**
-     * Get orders by user ID
+     * Get orders by user ID with pagination
      */
-    PageResponse<OrderResponse> getOrdersByUserId(UUID userId, int page, int size);
+    PageResponse<OrderResponse> getOrdersByUserId(UUID userId, Pageable pageable);
 
     /**
-     * Get orders by status
+     * Get orders by status with pagination
      */
-    PageResponse<OrderResponse> getOrdersByStatus(String status, int page, int size);
+    PageResponse<OrderResponse> getOrdersByStatus(String status, Pageable pageable);
 
     /**
      * Update order status
@@ -53,17 +54,17 @@ public interface OrderService {
     OrderResponse updatePaymentStatus(UUID id, String paymentStatus);
 
     /**
-     * Cancel order
+     * Cancel an order and restore stock
      */
     OrderResponse cancelOrder(UUID id);
 
     /**
-     * Update order top-level editable fields
+     * Update order top-level editable fields and items
      */
     OrderResponse updateOrder(UUID id, UpdateOrderRequest request);
 
     /**
-     * Delete order
+     * Delete an order
      */
     void deleteOrder(UUID id);
 

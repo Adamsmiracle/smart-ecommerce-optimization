@@ -1,35 +1,21 @@
 package com.miracle.smart_ecommerce_jpa.domain.user.repository;
 
 import com.miracle.smart_ecommerce_jpa.domain.user.entity.Address;
+import org.springframework.data.jpa.repository.JpaRepository;
+import org.springframework.data.jpa.repository.Modifying;
+import org.springframework.data.jpa.repository.Query;
+import org.springframework.data.repository.query.Param;
+import org.springframework.stereotype.Repository;
 
 import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
 
 /**
- * Repository interface for Address operations.
+ * JPA Repository interface for Address operations.
  */
-public interface AddressRepository {
-
-    /**
-     * Save a new address
-     */
-    Address save(Address address);
-
-    /**
-     * Update an existing address
-     */
-    Address update(Address address);
-
-    /**
-     * Find address by ID
-     */
-    Optional<Address> findById(UUID id);
-
-    /**
-     * Find all addresses
-     */
-    List<Address> findAll();
+@Repository
+public interface AddressRepository extends JpaRepository<Address, UUID> {
 
     /**
      * Find all addresses for a user
@@ -39,26 +25,24 @@ public interface AddressRepository {
     /**
      * Find addresses by user ID and type
      */
-    List<Address> findByUserIdAndType(UUID userId, String addressType);
+    List<Address> findByUserIdAndAddressType(UUID userId, String addressType);
 
     /**
-     * Find default address for a user
+     * Find the default address for a user
      */
-    Optional<Address> findDefaultByUserId(UUID userId);
+    Optional<Address> findByUserIdAndIsDefaultTrue(UUID userId);
 
     /**
-     * Check if address exists by ID
+     * Clear default flag for all addresses of a user
      */
-    boolean existsById(UUID id);
+    @Modifying
+    @Query("UPDATE Address a SET a.isDefault = false WHERE a.userId = :userId")
+    void clearDefaultByUserId(@Param("userId") UUID userId);
 
     /**
-     * Delete address by ID
+     * Set an address as default
      */
-    void deleteById(UUID id);
-
-    /**
-     * Clear default flag for all addresses of a user and type
-     */
-    void clearDefaultForUserAndType(UUID userId, String addressType);
+    @Modifying
+    @Query("UPDATE Address a SET a.isDefault = true WHERE a.id = :id")
+    void setAsDefault(@Param("id") UUID id);
 }
-

@@ -21,10 +21,22 @@ spring:
       connection-test-query: SELECT 1
 
 
+  jpa:
+    hibernate:
+      ddl-auto: validate
+    show-sql: true
+    properties:
+      hibernate:
+        format-sql: true
+
+
+
+
   flyway:
     enabled: true
     baseline-on-migrate: true
     baseline-version: 1
+    locations: classpath:db/migration
 
 
   sql:
@@ -70,17 +82,15 @@ springdoc:
   api-docs:
     enabled: true
     path: /v3/api-docs
-    version: OPENAPI_3_0  # Force OpenAPI 3.0 instead of 3.1 (use OPENAPI_3_0 in uppercase)
+    version: OPENAPI_3_0
   swagger-ui:
     enabled: true
     path: /swagger-ui.html
-    # DON'T set config-url or url - let SpringDoc auto-detect them
     try-it-out-enabled: true
     operations-sorter: method
     tags-sorter: alpha
 
-# JWT Configuration
 jwt:
   secret: bXlTZWNyZXRLZXlGb3JKd3RUb2tlbkdlbmVyYXRpb25UaGF0SXNMb25nRW5vdWdoRm9ySFM1MTJBbGdvcml0aG0xMjM0NQ==
-  expiration: 86400000      # 24 hours in milliseconds
-  refresh-expiration: 604800000  # 7 days in milliseconds
+  expiration: 86400000
+  refresh-expiration: 604800000

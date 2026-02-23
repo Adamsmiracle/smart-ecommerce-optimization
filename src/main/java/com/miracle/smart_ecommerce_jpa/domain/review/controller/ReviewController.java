@@ -10,6 +10,8 @@ import io.swagger.v3.oas.annotations.Parameter;
 import io.swagger.v3.oas.annotations.responses.ApiResponses;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.Valid;
+import org.springframework.data.domain.Pageable;
+import org.springframework.data.web.PageableDefault;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
@@ -46,9 +48,8 @@ public class ReviewController {
     @GetMapping
     @Operation(summary = "Get all reviews", description = "Retrieve all reviews (paginated)")
     public ResponseEntity<ApiResponse<PageResponse<ReviewResponse>>> getAllReviews(
-            @Parameter(description = "Page number (0-based)") @RequestParam(defaultValue = "0") int page,
-            @Parameter(description = "Page size") @RequestParam(defaultValue = "10") int size) {
-        PageResponse<ReviewResponse> reviews = reviewService.getAllReviews(page, size);
+            @PageableDefault(size = 10) Pageable pageable) {
+        PageResponse<ReviewResponse> reviews = reviewService.getAllReviews(pageable);
         return ResponseEntity.ok(ApiResponse.success(reviews));
     }
 
@@ -64,9 +65,8 @@ public class ReviewController {
     @Operation(summary = "Get reviews for a product", description = "Retrieves all reviews for a specific product")
     public ResponseEntity<ApiResponse<PageResponse<ReviewResponse>>> getReviewsByProductId(
             @Parameter(description = "Product ID") @PathVariable UUID productId,
-            @Parameter(description = "Page number (0-based)") @RequestParam(defaultValue = "0") int page,
-            @Parameter(description = "Page size") @RequestParam(defaultValue = "10") int size) {
-        PageResponse<ReviewResponse> reviews = reviewService.getReviewsByProductId(productId, page, size);
+            @PageableDefault(size = 10) Pageable pageable) {
+        PageResponse<ReviewResponse> reviews = reviewService.getReviewsByProductId(productId, pageable);
         return ResponseEntity.ok(ApiResponse.success(reviews));
     }
 
@@ -74,9 +74,8 @@ public class ReviewController {
     @Operation(summary = "Get reviews by user", description = "Retrieves all reviews submitted by a specific user")
     public ResponseEntity<ApiResponse<PageResponse<ReviewResponse>>> getReviewsByUserId(
             @Parameter(description = "User ID") @PathVariable UUID userId,
-            @Parameter(description = "Page number (0-based)") @RequestParam(defaultValue = "0") int page,
-            @Parameter(description = "Page size") @RequestParam(defaultValue = "10") int size) {
-        PageResponse<ReviewResponse> reviews = reviewService.getReviewsByUserId(userId, page, size);
+            @PageableDefault(size = 10) Pageable pageable) {
+        PageResponse<ReviewResponse> reviews = reviewService.getReviewsByUserId(userId, pageable);
         return ResponseEntity.ok(ApiResponse.success(reviews));
     }
 

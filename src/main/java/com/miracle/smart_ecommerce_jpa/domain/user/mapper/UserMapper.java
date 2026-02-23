@@ -1,8 +1,6 @@
 package com.miracle.smart_ecommerce_jpa.domain.user.mapper;
 
-import com.fasterxml.jackson.core.type.TypeReference;
-import com.fasterxml.jackson.databind.ObjectMapper;
-import com.miracle.smart_ecommerce_jpa.common.util.JdbcUtils;
+import com.miracle.smart_ecommerce_jpa.common.util.Utils;
 import com.miracle.smart_ecommerce_jpa.domain.user.entity.User;
 import org.springframework.jdbc.core.RowMapper;
 import org.springframework.stereotype.Component;
@@ -32,15 +30,15 @@ public class UserMapper implements RowMapper<User> {
         }
 
         return User.builder()
-                .id(JdbcUtils.getUUID(rs, "id"))
+                .id(Utils.getUUID(rs, "id"))
                 .emailAddress(rs.getString("email_address"))
                 .firstName(rs.getString("first_name"))
                 .lastName(rs.getString("last_name"))
                 .phoneNumber(rs.getString("phone_number"))
                 .passwordHash(rs.getString("password_hash"))
-                .isActive(JdbcUtils.getBoolean(rs, "is_active"))
-                .createdAt(JdbcUtils.getOffsetDateTime(rs, "created_at"))
-                .updatedAt(JdbcUtils.getOffsetDateTime(rs, "updated_at"))
+                .isActive(Utils.getBoolean(rs, "is_active"))
+                .createdAt(Utils.getOffsetDateTime(rs, "created_at"))
+                .updatedAt(Utils.getOffsetDateTime(rs, "updated_at"))
                 .role(role)
                 .build();
     }

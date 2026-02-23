@@ -31,7 +31,8 @@ public class CacheConfig {
     public static final String ADDRESSES_CACHE = "addresses";
     public static final String CART_CACHE = "cart";
     public static final String REVIEWS_CACHE = "reviews";
-    public static final String WISHLIST_CACHE = "wishlist";
+    public static final String PAYMENT_METHODS_CACHE = "payment_methods";
+    public static final String SHIPPING_METHODS_CACHE = "shipping_method";
 
     @Bean
     public CacheManager cacheManager() {
@@ -44,8 +45,9 @@ public class CacheConfig {
             buildEntityCache(ORDERS_CACHE),
             buildEntityCache(ADDRESSES_CACHE),
             buildEntityCache(CART_CACHE),
+            buildEntityCache(PAYMENT_METHODS_CACHE),
             buildEntityCache(REVIEWS_CACHE),
-            buildEntityCache(WISHLIST_CACHE)
+            buildEntityCache(SHIPPING_METHODS_CACHE)
         ));
 
         return cacheManager;

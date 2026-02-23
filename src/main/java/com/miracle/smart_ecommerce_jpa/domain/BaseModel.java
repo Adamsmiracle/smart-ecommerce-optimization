@@ -1,5 +1,6 @@
 package com.miracle.smart_ecommerce_jpa.domain;
 
+import jakarta.persistence.*;
 import lombok.AllArgsConstructor;
 import lombok.Data;
 import lombok.NoArgsConstructor;
@@ -9,25 +10,42 @@ import java.time.OffsetDateTime;
 import java.util.UUID;
 
 /**
- * Base domain model with common fields.
- * All domain models extend this class.
+ * Base JPA entity with common fields.
+ * All JPA entities extend this class.
  */
+@MappedSuperclass
 @Data
 @NoArgsConstructor
 @AllArgsConstructor
 @SuperBuilder
 public abstract class BaseModel {
 
+    @Id
+    @GeneratedValue(strategy = GenerationType.UUID)
+    private UUID id;
 
-    protected UUID id;
-    protected OffsetDateTime createdAt;
-    protected OffsetDateTime updatedAt;
+    @Column(name = "created_at", nullable = false, updatable = false)
+    private OffsetDateTime createdAt;
+
+    @Column(name = "updated_at")
+    private OffsetDateTime updatedAt;
 
     /**
      * Check if this is a new (unsaved) entity
      */
     public boolean isNew() {
         return id == null;
+    }
+
+    @PrePersist
+    protected void onCreate() {
+        createdAt = OffsetDateTime.now();
+        updatedAt = OffsetDateTime.now();
+    }
+
+    @PreUpdate
+    protected void onUpdate() {
+        updatedAt = OffsetDateTime.now();
     }
 }
 

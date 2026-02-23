@@ -15,6 +15,8 @@ public class PaymentMethodResponse {
     private String paymentType;
     private String provider;
     private String maskedAccount;
+    private Boolean isDefault = false;
+    private Boolean isActive = true;
     private OffsetDateTime expiryDate;
     private OffsetDateTime createdAt;
 }
