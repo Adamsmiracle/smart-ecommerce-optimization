@@ -1,7 +1,7 @@
 
 spring:
   application:
-    name: smart-commerce-api-v1
+    name: smart-commerce-jpa
   profiles:
     active: dev
 

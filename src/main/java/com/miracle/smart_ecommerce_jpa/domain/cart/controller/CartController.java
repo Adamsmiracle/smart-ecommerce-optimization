@@ -1,5 +1,6 @@
 package com.miracle.smart_ecommerce_jpa.domain.cart.controller;
 
+import com.miracle.smart_ecommerce_jpa.annotation.RequireRoles;
 import com.miracle.smart_ecommerce_jpa.common.response.ApiResponse;
 import com.miracle.smart_ecommerce_jpa.common.response.PageResponse;
 import com.miracle.smart_ecommerce_jpa.domain.cart.dto.AddToCartRequest;
@@ -9,6 +10,8 @@ import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.Parameter;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.Valid;
+import org.springframework.data.domain.Pageable;
+import org.springframework.data.web.PageableDefault;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
@@ -19,6 +22,7 @@ import java.util.UUID;
  */
 @RestController
 @RequestMapping("/api/cart")
+@RequireRoles({"ADMIN", "CUSTOMER"})
 @Tag(name = "Cart", description = "Shopping cart management APIs")
 public class CartController {
 
@@ -31,9 +35,8 @@ public class CartController {
     @GetMapping
     @Operation(summary = "Get all carts", description = "Retrieves all shopping carts with pagination (Admin)")
     public ResponseEntity<ApiResponse<PageResponse<CartResponse>>> getAllCarts(
-            @Parameter(description = "Page number (0-based)") @RequestParam(defaultValue = "0") int page,
-            @Parameter(description = "Page size") @RequestParam(defaultValue = "10") int size) {
-        PageResponse<CartResponse> carts = cartService.getAllCarts(page, size);
+            @PageableDefault(size = 10) Pageable pageable) {
+        PageResponse<CartResponse> carts = cartService.getAllCarts(pageable);
         return ResponseEntity.ok(ApiResponse.success(carts));
     }
 

@@ -2,6 +2,7 @@ package com.miracle.smart_ecommerce_jpa.domain.order.mapper;
 
 import com.miracle.smart_ecommerce_jpa.common.util.Utils;
 import com.miracle.smart_ecommerce_jpa.domain.order.entity.OrderItem;
+import com.miracle.smart_ecommerce_jpa.domain.product.entity.Product;
 import org.springframework.jdbc.core.RowMapper;
 import org.springframework.stereotype.Component;
 
@@ -28,10 +29,10 @@ public class OrderItemMapper implements RowMapper<OrderItem> {
 
         return OrderItem.builder()
                 .id(Utils.getUUID(rs, "id"))
-                .orderId(Utils.getUUID(rs, "order_id"))
-                .productId(Utils.getUUID(rs, "product_id"))
+                .product(Product.builder().id(Utils.getUUID(rs, "product_id")).build())
                 .unitPrice(unitPrice)
                 .quantity(qty)
                 .build();
+        // Note: order relationship should be loaded separately via JPA
     }
 }

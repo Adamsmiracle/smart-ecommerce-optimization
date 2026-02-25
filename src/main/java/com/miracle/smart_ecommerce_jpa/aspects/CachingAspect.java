@@ -1,10 +1,13 @@
 package com.miracle.smart_ecommerce_jpa.aspects;
 
+import com.github.benmanes.caffeine.cache.stats.CacheStats;
 import lombok.extern.slf4j.Slf4j;
 import org.aspectj.lang.ProceedingJoinPoint;
 import org.aspectj.lang.annotation.Around;
 import org.aspectj.lang.annotation.Aspect;
 import org.aspectj.lang.annotation.Pointcut;
+import org.springframework.cache.CacheManager;
+import org.springframework.cache.caffeine.CaffeineCache;
 import org.springframework.stereotype.Component;
 
 /**
@@ -15,6 +18,12 @@ import org.springframework.stereotype.Component;
 @Component
 @Slf4j
 public class CachingAspect {
+
+    private final CacheManager cacheManager;
+
+    public CachingAspect(CacheManager cacheManager) {
+        this.cacheManager = cacheManager;
+    }
 
     /**
      * Pointcut for methods annotated with @Cacheable
@@ -41,25 +50,45 @@ public class CachingAspect {
     @Around("cacheableMethods()")
     public Object monitorCacheableMethod(ProceedingJoinPoint joinPoint) throws Throwable {
         String methodName = joinPoint.getSignature().toShortString();
-        long startTime = System.currentTimeMillis();
 
         try {
             Object result = joinPoint.proceed();
-            long executionTime = System.currentTimeMillis() - startTime;
-
-            if (executionTime < 10) {
-                log.debug("CACHE HIT - Method {} returned in {} ms (likely from cache)",
-                         methodName, executionTime);
-            } else {
-                log.debug("CACHE MISS - Method {} executed in {} ms (database query)",
-                         methodName, executionTime);
-            }
-
+            
+            // Log cache operation with method info
+            log.debug("CACHE OPERATION - Method {} executed successfully", methodName);
+            
+            // Log overall cache statistics (optional, can be verbose)
+            logCacheStatistics();
+            
             return result;
         } catch (Throwable throwable) {
             log.error("Cache operation failed for method {}: {}",
                      methodName, throwable.getMessage());
             throw throwable;
+        }
+    }
+
+    /**
+     * Log current cache statistics for monitoring
+     */
+    private void logCacheStatistics() {
+        try {
+            cacheManager.getCacheNames().forEach(cacheName -> {
+                org.springframework.cache.Cache cache = cacheManager.getCache(cacheName);
+                if (cache instanceof CaffeineCache) {
+                    CaffeineCache caffeineCache = (CaffeineCache) cache;
+                    CacheStats stats = caffeineCache.getNativeCache().stats();
+                    
+                    if (stats.requestCount() > 0) {
+                        double hitRate = stats.hitRate() * 100;
+                        log.debug("CACHE STATS [{}] - Hits: {}, Misses: {}, Hit Rate: {:.2f}%, Size: {}",
+                                cacheName, stats.hitCount(), stats.missCount(), 
+                                hitRate, caffeineCache.getNativeCache().estimatedSize());
+                    }
+                }
+            });
+        } catch (Exception e) {
+            log.debug("Could not log cache statistics: {}", e.getMessage());
         }
     }
 

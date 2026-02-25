@@ -25,14 +25,14 @@ public interface ProductRepository extends JpaRepository<Product, UUID> {
     Page<Product> findActiveProducts(Pageable pageable);
 
     /**
-     * Find products by category ID with pagination
+     * Find products by category ID with pagination (via relation path)
      */
-    Page<Product> findByCategoryId(UUID categoryId, Pageable pageable);
+    Page<Product> findByCategory_Id(UUID categoryId, Pageable pageable);
 
     /**
-     * Find active products by category ID with pagination
+     * Find active products by category ID with pagination (via relation path)
      */
-    @Query("SELECT p FROM Product p WHERE p.categoryId = :categoryId AND p.isActive = true")
+    @Query("SELECT p FROM Product p WHERE p.category.id = :categoryId AND p.isActive = true")
     Page<Product> findActiveByCategoryId(@Param("categoryId") UUID categoryId, Pageable pageable);
 
     /**
@@ -60,9 +60,9 @@ public interface ProductRepository extends JpaRepository<Product, UUID> {
     long countByIsActiveTrue();
 
     /**
-     * Count products by category
+     * Count products by category (via relation path)
      */
-    long countByCategoryId(UUID categoryId);
+    long countByCategory_Id(UUID categoryId);
 
     /**
      * Update product stock quantity

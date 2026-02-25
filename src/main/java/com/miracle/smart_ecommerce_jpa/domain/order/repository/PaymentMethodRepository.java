@@ -22,17 +22,17 @@ public interface PaymentMethodRepository extends JpaRepository<PaymentMethod, UU
     /**
      * Find all payment methods for a user with pagination
      */
-    Page<PaymentMethod> findByUserId(UUID userId, Pageable pageable);
+    Page<PaymentMethod> findByUser_Id(UUID userId, Pageable pageable);
 
     /**
      * Find all active payment methods for a user
      */
-    List<PaymentMethod> findByUserIdAndIsActiveTrue(UUID userId);
+    List<PaymentMethod> findByUser_IdAndIsActiveTrue(UUID userId);
 
     /**
      * Find the default payment method for a user
      */
-    Optional<PaymentMethod> findByUserIdAndIsDefaultTrue(UUID userId);
+    Optional<PaymentMethod> findByUser_IdAndIsDefaultTrue(UUID userId);
 
     /**
      * Set active status for a payment method
@@ -42,10 +42,10 @@ public interface PaymentMethodRepository extends JpaRepository<PaymentMethod, UU
     void setActiveStatus(@Param("id") UUID id, @Param("isActive") boolean isActive);
 
     /**
-     * Set default payment method for a user (clears existing default first)
+     * Clear default flag for all payment methods of a user
      */
     @Modifying
-    @Query("UPDATE PaymentMethod p SET p.isDefault = false WHERE p.userId = :userId")
+    @Query("UPDATE PaymentMethod p SET p.isDefault = false WHERE p.user.id = :userId")
     void clearDefaultByUserId(@Param("userId") UUID userId);
 
     /**

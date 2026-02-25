@@ -9,11 +9,11 @@ import jakarta.validation.constraints.NotNull;
 import jakarta.validation.constraints.Size;
 import lombok.*;
 import lombok.experimental.SuperBuilder;
-import org.hibernate.proxy.HibernateProxy;
 
 import java.math.BigDecimal;
 import java.time.OffsetDateTime;
-import java.util.*;
+import java.util.ArrayList;
+import java.util.List;
 
 /**
  * Customer Order JPA entity - represents customer_order table.
@@ -28,9 +28,11 @@ import java.util.*;
 @SuperBuilder
 public class CustomerOrder extends BaseModel {
 
-    @NotNull(message = "User ID is required")
-    @Column(name = "user_id", nullable = false)
-    private UUID userId;
+    @NotNull(message = "User is required")
+    @ManyToOne(fetch = FetchType.LAZY, optional = false)
+    @JoinColumn(name = "user_id", nullable = false)
+    @ToString.Exclude
+    private User user;
 
     @NotBlank(message = "Order number is required")
     @Size(max = 50, message = "Order number cannot exceed 50 characters")
@@ -38,20 +40,19 @@ public class CustomerOrder extends BaseModel {
     private String orderNumber;
 
     @Size(max = 30, message = "Status cannot exceed 30 characters")
-    @Column(name = "status", length = 30)
+    @Column(name = "status", length = 30, nullable = false)
     @Builder.Default
     private String status = OrderStatus.PENDING.name().toLowerCase();
 
-    @Column(name = "payment_method_id")
-    private UUID paymentMethodId;
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "payment_method_id")
+    @ToString.Exclude
+    private PaymentMethod paymentMethod;
 
-    @Size(max = 30, message = "Payment status cannot exceed 30 characters")
-    @Column(name = "payment_status", length = 30)
-    @Builder.Default
-    private String paymentStatus = PaymentStatus.PENDING.name().toLowerCase();
-
-    @Column(name = "shipping_method_id")
-    private UUID shippingMethodId;
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "shipping_method_id")
+    @ToString.Exclude
+    private ShippingMethod shippingMethod;
 
     @NotNull(message = "Subtotal is required")
     @DecimalMin(value = "0.00", message = "Subtotal must be non-negative")
@@ -63,26 +64,16 @@ public class CustomerOrder extends BaseModel {
     @Column(name = "total", nullable = false, precision = 19, scale = 2)
     private BigDecimal total;
 
-    // Relationships
-    @ManyToOne(fetch = FetchType.LAZY)
-    @JoinColumn(name = "user_id", referencedColumnName = "id", insertable = false, updatable = false)
-    @ToString.Exclude
-    private User user;
-
-    @ManyToOne(fetch = FetchType.LAZY)
-    @JoinColumn(name = "payment_method_id", referencedColumnName = "id", insertable = false, updatable = false)
-    @ToString.Exclude
-    private PaymentMethod paymentMethod;
-
-    @ManyToOne(fetch = FetchType.LAZY)
-    @JoinColumn(name = "shipping_method_id", referencedColumnName = "id", insertable = false, updatable = false)
-    @ToString.Exclude
-    private ShippingMethod shippingMethod;
-
     @OneToMany(mappedBy = "order", cascade = CascadeType.ALL, orphanRemoval = true, fetch = FetchType.LAZY)
     @Builder.Default
     @ToString.Exclude
     private List<OrderItem> orderItems = new ArrayList<>();
+
+    // Payment status field - persisted as a string (e.g., pending, paid, failed)
+    @Size(max = 30, message = "Payment status cannot exceed 30 characters")
+    @Column(name = "payment_status", length = 30)
+    @Builder.Default
+    private String paymentStatus = PaymentStatus.PENDING.name().toLowerCase();
 
     /**
      * Generate unique order number using UUID to avoid collisions under high load
@@ -91,12 +82,12 @@ public class CustomerOrder extends BaseModel {
         String timestamp = java.time.format.DateTimeFormatter
                 .ofPattern("yyyyMMdd")
                 .format(OffsetDateTime.now());
-        String uniquePart = UUID.randomUUID().toString().replace("-", "").substring(0, 8).toUpperCase();
+        String uniquePart = java.util.UUID.randomUUID().toString().replace("-", "").substring(0, 8).toUpperCase();
         return "ORD-" + timestamp + "-" + uniquePart;
     }
 
     /**
-     * Add order item and keep both sides of the hybrid mapping in sync
+     * Add order item and keep both sides in sync
      */
     public void addOrderItem(OrderItem item) {
         if (item == null) {
@@ -106,7 +97,6 @@ public class CustomerOrder extends BaseModel {
             orderItems = new ArrayList<>();
         }
         orderItems.add(item);
-        item.setOrderId(this.getId());
         item.setOrder(this);
     }
 
@@ -168,21 +158,5 @@ public class CustomerOrder extends BaseModel {
         FAILED,
         REFUNDED,
         PARTIALLY_REFUNDED
-    }
-
-    @Override
-    public final boolean equals(Object o) {
-        if (this == o) return true;
-        if (o == null) return false;
-        Class<?> oEffectiveClass = o instanceof HibernateProxy ? ((HibernateProxy) o).getHibernateLazyInitializer().getPersistentClass() : o.getClass();
-        Class<?> thisEffectiveClass = this instanceof HibernateProxy ? ((HibernateProxy) this).getHibernateLazyInitializer().getPersistentClass() : this.getClass();
-        if (thisEffectiveClass != oEffectiveClass) return false;
-        CustomerOrder that = (CustomerOrder) o;
-        return getId() != null && Objects.equals(getId(), that.getId());
-    }
-
-    @Override
-    public final int hashCode() {
-        return this instanceof HibernateProxy ? ((HibernateProxy) this).getHibernateLazyInitializer().getPersistentClass().hashCode() : getClass().hashCode();
     }
 }

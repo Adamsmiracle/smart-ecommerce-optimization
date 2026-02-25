@@ -1,5 +1,6 @@
 package com.miracle.smart_ecommerce_jpa.domain.product.controller;
 
+import com.miracle.smart_ecommerce_jpa.annotation.RequireRoles;
 import com.miracle.smart_ecommerce_jpa.common.response.ApiResponse;
 import com.miracle.smart_ecommerce_jpa.common.response.PageResponse;
 import com.miracle.smart_ecommerce_jpa.domain.product.dto.CreateProductRequest;
@@ -10,6 +11,8 @@ import io.swagger.v3.oas.annotations.Parameter;
 import io.swagger.v3.oas.annotations.responses.ApiResponses;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.Valid;
+import org.springframework.data.domain.Pageable;
+import org.springframework.data.web.PageableDefault;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
@@ -32,6 +35,7 @@ public class ProductController {
     }
 
     @PostMapping
+    @RequireRoles({"ADMIN"})
     @Operation(summary = "Create a new product", description = "Creates a new product")
     @ApiResponses(value = {
             @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "201", description = "Product created successfully"),
@@ -52,29 +56,19 @@ public class ProductController {
         return ResponseEntity.ok(ApiResponse.success(product));
     }
 
-    @GetMapping("/sku/{sku}")
-    @Operation(summary = "Get product by SKU", description = "Retrieves a product by its SKU")
-    public ResponseEntity<ApiResponse<ProductResponse>> getProductBySku(
-            @Parameter(description = "Product SKU") @PathVariable String sku) {
-        ProductResponse product = productService.getProductBySku(sku);
-        return ResponseEntity.ok(ApiResponse.success(product));
-    }
-
     @GetMapping
     @Operation(summary = "Get all products", description = "Retrieves all products with pagination")
     public ResponseEntity<ApiResponse<PageResponse<ProductResponse>>> getAllProducts(
-            @Parameter(description = "Page number (0-based)") @RequestParam(defaultValue = "0") int page,
-            @Parameter(description = "Page size") @RequestParam(defaultValue = "10") int size) {
-        PageResponse<ProductResponse> products = productService.getAllProducts(page, size);
+            @PageableDefault(size = 10) Pageable pageable) {
+        PageResponse<ProductResponse> products = productService.getAllProducts(pageable);
         return ResponseEntity.ok(ApiResponse.success(products));
     }
 
     @GetMapping("/active")
     @Operation(summary = "Get active products", description = "Retrieves active products with pagination")
     public ResponseEntity<ApiResponse<PageResponse<ProductResponse>>> getActiveProducts(
-            @Parameter(description = "Page number (0-based)") @RequestParam(defaultValue = "0") int page,
-            @Parameter(description = "Page size") @RequestParam(defaultValue = "10") int size) {
-        PageResponse<ProductResponse> products = productService.getActiveProducts(page, size);
+            @PageableDefault(size = 10) Pageable pageable) {
+        PageResponse<ProductResponse> products = productService.getActiveProducts(pageable);
         return ResponseEntity.ok(ApiResponse.success(products));
     }
 
@@ -82,9 +76,8 @@ public class ProductController {
     @Operation(summary = "Get products by category", description = "Retrieves products by category ID")
     public ResponseEntity<ApiResponse<PageResponse<ProductResponse>>> getProductsByCategory(
             @Parameter(description = "Category ID") @PathVariable UUID categoryId,
-            @Parameter(description = "Page number (0-based)") @RequestParam(defaultValue = "0") int page,
-            @Parameter(description = "Page size") @RequestParam(defaultValue = "10") int size) {
-        PageResponse<ProductResponse> products = productService.getProductsByCategory(categoryId, page, size);
+            @PageableDefault(size = 10) Pageable pageable) {
+        PageResponse<ProductResponse> products = productService.getProductsByCategory(categoryId, pageable);
         return ResponseEntity.ok(ApiResponse.success(products));
     }
 
@@ -92,9 +85,8 @@ public class ProductController {
     @Operation(summary = "Search products", description = "Search products by keyword")
     public ResponseEntity<ApiResponse<PageResponse<ProductResponse>>> searchProducts(
             @Parameter(description = "Search keyword") @RequestParam String keyword,
-            @Parameter(description = "Page number (0-based)") @RequestParam(defaultValue = "0") int page,
-            @Parameter(description = "Page size") @RequestParam(defaultValue = "10") int size) {
-        PageResponse<ProductResponse> products = productService.searchProducts(keyword, page, size);
+            @PageableDefault(size = 10) Pageable pageable) {
+        PageResponse<ProductResponse> products = productService.searchProducts(keyword, pageable);
         return ResponseEntity.ok(ApiResponse.success(products));
     }
 
@@ -103,22 +95,21 @@ public class ProductController {
     public ResponseEntity<ApiResponse<PageResponse<ProductResponse>>> getProductsByPriceRange(
             @Parameter(description = "Minimum price") @RequestParam BigDecimal minPrice,
             @Parameter(description = "Maximum price") @RequestParam BigDecimal maxPrice,
-            @Parameter(description = "Page number (0-based)") @RequestParam(defaultValue = "0") int page,
-            @Parameter(description = "Page size") @RequestParam(defaultValue = "10") int size) {
-        PageResponse<ProductResponse> products = productService.getProductsByPriceRange(minPrice, maxPrice, page, size);
+            @PageableDefault(size = 10) Pageable pageable) {
+        PageResponse<ProductResponse> products = productService.getProductsByPriceRange(minPrice, maxPrice, pageable);
         return ResponseEntity.ok(ApiResponse.success(products));
     }
 
     @GetMapping("/in-stock")
     @Operation(summary = "Get products in stock", description = "Retrieves products that are in stock")
     public ResponseEntity<ApiResponse<PageResponse<ProductResponse>>> getProductsInStock(
-            @Parameter(description = "Page number (0-based)") @RequestParam(defaultValue = "0") int page,
-            @Parameter(description = "Page size") @RequestParam(defaultValue = "10") int size) {
-        PageResponse<ProductResponse> products = productService.getProductsInStock(page, size);
+            @PageableDefault(size = 10) Pageable pageable) {
+        PageResponse<ProductResponse> products = productService.getProductsInStock(pageable);
         return ResponseEntity.ok(ApiResponse.success(products));
     }
 
     @PutMapping("/{id}")
+    @RequireRoles({"ADMIN"})
     @Operation(summary = "Update product", description = "Updates an existing product")
     public ResponseEntity<ApiResponse<ProductResponse>> updateProduct(
             @Parameter(description = "Product ID") @PathVariable UUID id,
@@ -128,6 +119,7 @@ public class ProductController {
     }
 
     @DeleteMapping("/{id}")
+    @RequireRoles({"ADMIN"})
     @Operation(summary = "Delete product", description = "Deletes a product by ID")
     public ResponseEntity<ApiResponse<Void>> deleteProduct(
             @Parameter(description = "Product ID") @PathVariable UUID id) {
@@ -136,6 +128,7 @@ public class ProductController {
     }
 
     @PostMapping("/{id}/activate")
+    @RequireRoles({"ADMIN"})
     @Operation(summary = "Activate product", description = "Activates a product")
     public ResponseEntity<ApiResponse<Void>> activateProduct(
             @Parameter(description = "Product ID") @PathVariable UUID id) {
@@ -144,6 +137,7 @@ public class ProductController {
     }
 
     @PostMapping("/{id}/deactivate")
+    @RequireRoles({"ADMIN"})
     @Operation(summary = "Deactivate product", description = "Deactivates a product")
     public ResponseEntity<ApiResponse<Void>> deactivateProduct(
             @Parameter(description = "Product ID") @PathVariable UUID id) {
@@ -152,6 +146,7 @@ public class ProductController {
     }
 
     @PatchMapping("/{id}/stock")
+    @RequireRoles({"ADMIN"})
     @Operation(summary = "Update stock", description = "Updates product stock quantity")
     public ResponseEntity<ApiResponse<Void>> updateStock(
             @Parameter(description = "Product ID") @PathVariable UUID id,

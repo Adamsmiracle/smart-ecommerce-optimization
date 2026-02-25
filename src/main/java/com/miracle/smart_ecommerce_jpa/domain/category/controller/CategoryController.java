@@ -1,6 +1,8 @@
 package com.miracle.smart_ecommerce_jpa.domain.category.controller;
 
+import com.miracle.smart_ecommerce_jpa.annotation.RequireRoles;
 import com.miracle.smart_ecommerce_jpa.common.response.ApiResponse;
+import com.miracle.smart_ecommerce_jpa.common.response.PageResponse;
 import com.miracle.smart_ecommerce_jpa.domain.category.dto.CreateCategoryRequest;
 import com.miracle.smart_ecommerce_jpa.domain.category.dto.CategoryResponse;
 import com.miracle.smart_ecommerce_jpa.domain.category.service.CategoryService;
@@ -8,11 +10,12 @@ import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.Parameter;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.Valid;
+import org.springframework.data.domain.Pageable;
+import org.springframework.data.web.PageableDefault;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
-import java.util.List;
 import java.util.UUID;
 
 /**
@@ -30,6 +33,7 @@ public class CategoryController {
     }
 
     @PostMapping
+    @RequireRoles({"ADMIN"})
     @Operation(summary = "Create a new category", description = "Creates a new product category")
     public ResponseEntity<ApiResponse<CategoryResponse>> createCategory(@Valid @RequestBody CreateCategoryRequest request) {
         CategoryResponse category = categoryService.createCategory(request);
@@ -46,13 +50,15 @@ public class CategoryController {
     }
 
     @GetMapping
-    @Operation(summary = "Get all categories", description = "Retrieves all categories")
-    public ResponseEntity<ApiResponse<List<CategoryResponse>>> getAllCategories() {
-        List<CategoryResponse> categories = categoryService.getAllCategories();
+    @Operation(summary = "Get all categories", description = "Retrieves all categories (paginated)")
+    public ResponseEntity<ApiResponse<PageResponse<CategoryResponse>>> getAllCategories(
+            @PageableDefault(size = 10) Pageable pageable) {
+        PageResponse<CategoryResponse> categories = categoryService.getAllCategories(pageable);
         return ResponseEntity.ok(ApiResponse.success(categories));
     }
 
     @PutMapping("/{id}")
+    @RequireRoles({"ADMIN"})
     @Operation(summary = "Update category", description = "Updates an existing category")
     public ResponseEntity<ApiResponse<CategoryResponse>> updateCategory(
             @Parameter(description = "Category ID") @PathVariable UUID id,
@@ -62,6 +68,7 @@ public class CategoryController {
     }
 
     @DeleteMapping("/{id}")
+    @RequireRoles({"ADMIN"})
     @Operation(summary = "Delete category", description = "Deletes a category by ID")
     public ResponseEntity<ApiResponse<Void>> deleteCategory(
             @Parameter(description = "Category ID") @PathVariable UUID id) {
@@ -69,4 +76,3 @@ public class CategoryController {
         return ResponseEntity.ok(ApiResponse.success("Category deleted successfully"));
     }
 }
-

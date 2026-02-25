@@ -20,29 +20,29 @@ public interface ReviewRepository extends JpaRepository<ProductReview, UUID> {
     /**
      * Find all reviews for a product with pagination
      */
-    Page<ProductReview> findByProductId(UUID productId, Pageable pageable);
+    Page<ProductReview> findByProduct_Id(UUID productId, Pageable pageable);
 
     /**
      * Find all reviews by a user with pagination
      */
-    Page<ProductReview> findByUserId(UUID userId, Pageable pageable);
+    Page<ProductReview> findByUser_Id(UUID userId, Pageable pageable);
 
     /**
      * Get average rating for a product
      */
-    @Query("SELECT AVG(r.rating) FROM ProductReview r WHERE r.productId = :productId")
+    @Query("SELECT AVG(r.rating) FROM ProductReview r WHERE r.product.id = :productId")
     Double getAverageRatingByProductId(@Param("productId") UUID productId);
 
     /**
      * Count reviews for a product
      */
-    long countByProductId(UUID productId);
+    long countByProduct_Id(UUID productId);
 
-    @Query("SELECT r.rating, COUNT(r) FROM ProductReview r WHERE r.productId = :productId GROUP BY r.rating")
+    @Query("SELECT r.rating, COUNT(r) FROM ProductReview r WHERE r.product.id = :productId GROUP BY r.rating")
     List<Object[]> getRatingDistributionByProductId(@Param("productId") UUID productId);
 
     /**
      * Check if a user has already reviewed a product
      */
-    boolean existsByUserIdAndProductId(UUID userId, UUID productId);
+    boolean existsByUser_IdAndProduct_Id(UUID userId, UUID productId);
 }

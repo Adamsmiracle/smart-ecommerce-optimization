@@ -1,5 +1,6 @@
 package com.miracle.smart_ecommerce_jpa.graphql.resolver;
 
+import com.miracle.smart_ecommerce_jpa.annotation.RequireRoles;
 import com.miracle.smart_ecommerce_jpa.common.response.PageResponse;
 import com.miracle.smart_ecommerce_jpa.domain.user.dto.request.CreateUserRequest;
 import com.miracle.smart_ecommerce_jpa.domain.user.dto.request.UpdateUserRequest;
@@ -31,22 +32,26 @@ public class UserResolver {
     // ========================================================================
 
     @QueryMapping
+    @RequireRoles({"ADMIN", "CUSTOMER"})
     public UserResponse user(@Argument UUID id) {
         return userService.getUserById(id);
     }
 
     @QueryMapping
+    @RequireRoles({"ADMIN"})
     public UserResponse userByEmail(@Argument String email) {
         return userService.getUserByEmail(email);
     }
 
     @QueryMapping
+    @RequireRoles({"ADMIN"})
     public PageResponse<UserResponse> users(@Argument int page, @Argument int size) {
         Pageable pageable = PageRequest.of(page, size);
         return userService.getAllUsers(pageable);
     }
 
     @QueryMapping
+    @RequireRoles({"ADMIN"})
     public PageResponse<UserResponse> searchUsers(@Argument String keyword,
                                                    @Argument int page,
                                                    @Argument int size) {
@@ -59,6 +64,7 @@ public class UserResolver {
     // ========================================================================
 
     @MutationMapping
+    @RequireRoles({"ADMIN", "CUSTOMER"})
     public UserResponse createUser(@Argument Map<String, Object> input) {
         CreateUserRequest request = CreateUserRequest.builder()
                 .emailAddress((String) input.get("emailAddress"))
@@ -71,6 +77,7 @@ public class UserResolver {
     }
 
     @MutationMapping
+    @RequireRoles({"ADMIN", "CUSTOMER"})
     public UserResponse updateUser(@Argument UUID id, @Argument Map<String, Object> input) {
         UpdateUserRequest request = UpdateUserRequest.builder()
                 .emailAddress((String) input.get("emailAddress"))
@@ -83,18 +90,21 @@ public class UserResolver {
     }
 
     @MutationMapping
+    @RequireRoles({"ADMIN"})
     public boolean deleteUser(@Argument UUID id) {
         userService.deleteUser(id);
         return true;
     }
 
     @MutationMapping
+    @RequireRoles({"ADMIN"})
     public boolean activateUser(@Argument UUID id) {
         userService.activateUser(id);
         return true;
     }
 
     @MutationMapping
+    @RequireRoles({"ADMIN"})
     public boolean deactivateUser(@Argument UUID id) {
         userService.deactivateUser(id);
         return true;

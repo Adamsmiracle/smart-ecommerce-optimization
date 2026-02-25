@@ -4,12 +4,12 @@
 
 spring:
   application:
-    name: smart-commerce-api-v1
+    name: smart-commerce-jpa
 
   datasource:
     url: "jdbc:postgresql://localhost:5432/ecommerce_db"
-    username: "app_user"
-    password: "secret123"
+    username: "my_user"
+    password: "secret"
     driver-class-name: ${DATABASE_DRIVER:org.postgresql.Driver}
     hikari:
       pool-name: SmartEcommerceHikariPool

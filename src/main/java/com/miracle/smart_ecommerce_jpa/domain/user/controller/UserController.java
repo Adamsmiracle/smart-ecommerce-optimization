@@ -1,5 +1,7 @@
 package com.miracle.smart_ecommerce_jpa.domain.user.controller;
 
+import com.miracle.smart_ecommerce_jpa.annotation.RequireRoles;
+import com.miracle.smart_ecommerce_jpa.annotation.ValidSortFields;
 import com.miracle.smart_ecommerce_jpa.common.response.ApiResponse;
 import com.miracle.smart_ecommerce_jpa.common.response.PageResponse;
 import com.miracle.smart_ecommerce_jpa.domain.user.dto.request.CreateUserRequest;
@@ -25,6 +27,7 @@ import java.util.UUID;
 @RestController
 @RequestMapping("/api/users")
 @Tag(name = "Users", description = "User management APIs")
+@RequireRoles({"ADMIN", "CUSTOMER"})
 public class UserController {
 
     private final UserService userService;
@@ -40,6 +43,7 @@ public class UserController {
             @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "400", description = "Invalid input"),
             @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "409", description = "Email already exists")
     })
+    @RequireRoles({"ADMIN", "CUSTOMER"})
     public ResponseEntity<ApiResponse<UserResponse>> createUser(@Valid @RequestBody CreateUserRequest request) {
         UserResponse user = userService.createUser(request);
         return ResponseEntity.status(HttpStatus.CREATED)
@@ -52,6 +56,7 @@ public class UserController {
             @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "200", description = "User found"),
             @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "404", description = "User not found")
     })
+    @RequireRoles({"ADMIN", "CUSTOMER"})
     public ResponseEntity<ApiResponse<UserResponse>> getUserById(
             @Parameter(description = "User ID") @PathVariable UUID id) {
         UserResponse user = userService.getUserById(id);
@@ -60,6 +65,7 @@ public class UserController {
 
     @GetMapping("/email/{email}")
     @Operation(summary = "Get user by email", description = "Retrieves a user by their email address")
+    @RequireRoles({"ADMIN", "CUSTOMER"})
     public ResponseEntity<ApiResponse<UserResponse>> getUserByEmail(
             @Parameter(description = "User email") @PathVariable String email) {
         UserResponse user = userService.getUserByEmail(email);
@@ -68,6 +74,8 @@ public class UserController {
 
     @GetMapping
     @Operation(summary = "Get all users", description = "Retrieves all users with pagination")
+    @ValidSortFields(entityType = "User", fields = {"id", "emailAddress", "firstName", "lastName", "phoneNumber", "isActive", "role", "createdAt", "updatedAt"}, defaultField = "createdAt", defaultDirection = "DESC")
+    @RequireRoles({"ADMIN"})
     public ResponseEntity<ApiResponse<PageResponse<UserResponse>>> getAllUsers(
             @PageableDefault(size = 10) Pageable pageable) {
         PageResponse<UserResponse> users = userService.getAllUsers(pageable);
@@ -76,6 +84,7 @@ public class UserController {
 
     @GetMapping("/search")
     @Operation(summary = "Search users", description = "Search users by keyword (name or email)")
+    @RequireRoles({"ADMIN"})
     public ResponseEntity<ApiResponse<PageResponse<UserResponse>>> searchUsers(
             @Parameter(description = "Search keyword") @RequestParam String keyword,
             @PageableDefault(size = 10) Pageable pageable) {
@@ -85,6 +94,7 @@ public class UserController {
 
     @PutMapping("/{id}")
     @Operation(summary = "Update user", description = "Updates an existing user")
+    @RequireRoles({"ADMIN", "ADMIN"})
     public ResponseEntity<ApiResponse<UserResponse>> updateUser(
             @Parameter(description = "User ID") @PathVariable UUID id,
             @Valid @RequestBody UpdateUserRequest request) {
@@ -94,6 +104,7 @@ public class UserController {
 
     @DeleteMapping("/{id}")
     @Operation(summary = "Delete user", description = "Deletes a user by ID")
+    @RequireRoles({"ADMIN"})
     public ResponseEntity<ApiResponse<Void>> deleteUser(
             @Parameter(description = "User ID") @PathVariable UUID id) {
         userService.deleteUser(id);
@@ -102,6 +113,7 @@ public class UserController {
 
     @PostMapping("/{id}/activate")
     @Operation(summary = "Activate user", description = "Activates a user account")
+    @RequireRoles({"ADMIN"})
     public ResponseEntity<ApiResponse<Void>> activateUser(
             @Parameter(description = "User ID") @PathVariable UUID id) {
         userService.activateUser(id);
@@ -110,18 +122,11 @@ public class UserController {
 
     @PostMapping("/{id}/deactivate")
     @Operation(summary = "Deactivate user", description = "Deactivates a user account")
+    @RequireRoles({"ADMIN"})
     public ResponseEntity<ApiResponse<Void>> deactivateUser(
             @Parameter(description = "User ID") @PathVariable UUID id) {
         userService.deactivateUser(id);
         return ResponseEntity.ok(ApiResponse.success("User deactivated successfully"));
     }
 
-//    @PatchMapping("/{id}/roles")
-//    @Operation(summary = "Update user roles", description = "Admin: update roles for a user")
-//    public ResponseEntity<ApiResponse<Void>> updateRoles(
-//            @Parameter(description = "User ID") @PathVariable UUID id,
-//            @Valid @RequestBody UpdateRolesRequest request) {
-//        userService.updateUserRoles(id, request.getRoles());
-//        return ResponseEntity.ok(ApiResponse.success("User roles updated successfully"));
-//    }
 }

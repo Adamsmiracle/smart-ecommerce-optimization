@@ -1,16 +1,21 @@
 package com.miracle.smart_ecommerce_jpa.domain.user.service.impl;
 
+import com.miracle.smart_ecommerce_jpa.common.response.PageResponse;
 import com.miracle.smart_ecommerce_jpa.domain.user.entity.Address;
+import com.miracle.smart_ecommerce_jpa.domain.user.entity.User;
 import com.miracle.smart_ecommerce_jpa.domain.user.dto.request.CreateAddressRequest;
 import com.miracle.smart_ecommerce_jpa.domain.user.dto.response.AddressResponse;
-import com.miracle.smart_ecommerce_jpa.domain.user.service.AddressService;
-import com.miracle.smart_ecommerce_jpa.exception.ResourceNotFoundException;
 import com.miracle.smart_ecommerce_jpa.domain.user.repository.AddressRepository;
 import com.miracle.smart_ecommerce_jpa.domain.user.repository.UserRepository;
+import com.miracle.smart_ecommerce_jpa.domain.user.service.AddressService;
+import com.miracle.smart_ecommerce_jpa.exception.ResourceNotFoundException;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.cache.annotation.CacheEvict;
 import org.springframework.cache.annotation.Cacheable;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.PageImpl;
+import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -20,7 +25,7 @@ import java.util.UUID;
 import static com.miracle.smart_ecommerce_jpa.config.CacheConfig.*;
 
 /**
- * Implementation of AddressService.
+ * Implementation of AddressService using entity relationships instead of hybrid IDs.
  */
 @Slf4j
 @RequiredArgsConstructor
@@ -30,22 +35,17 @@ public class AddressServiceImpl implements AddressService {
     private final AddressRepository addressRepository;
     private final UserRepository userRepository;
 
-    /**
-     * Create a new address for a user.
-     * Cache is evicted to ensure stale address lists are refreshed.
-     */
     @Override
     @Transactional
     @CacheEvict(value = ADDRESSES_CACHE, allEntries = true)
     public AddressResponse createAddress(CreateAddressRequest request) {
         log.info("Creating address for user: {}", request.getUserId());
 
-        if (!userRepository.existsById(request.getUserId())) {
-            throw ResourceNotFoundException.forResource("User", request.getUserId());
-        }
+        User user = userRepository.findById(request.getUserId())
+                .orElseThrow(() -> ResourceNotFoundException.forResource("User", request.getUserId()));
 
         Address address = Address.builder()
-                .userId(request.getUserId())
+                .user(user) // Set User entity instead of userId
                 .addressLine(request.getAddressLine())
                 .city(request.getCity())
                 .region(request.getRegion())
@@ -60,10 +60,6 @@ public class AddressServiceImpl implements AddressService {
         return mapToResponse(saved);
     }
 
-    /**
-     * Get address by ID.
-     * Result is cached by ID to avoid repeated DB lookups.
-     */
     @Override
     @Transactional(readOnly = true)
     @Cacheable(value = ADDRESSES_CACHE, key = "'id:' + #id")
@@ -74,51 +70,37 @@ public class AddressServiceImpl implements AddressService {
         return mapToResponse(address);
     }
 
-    /**
-     * Get all addresses - admin use only, no caching due to potentially large result set.
-     */
     @Override
     @Transactional(readOnly = true)
-    public List<AddressResponse> getAllAddresses() {
-        log.debug("Getting all addresses");
-        return addressRepository.findAll().stream()
-                .map(this::mapToResponse)
-                .toList();
+    public PageResponse<AddressResponse> getAllAddresses(Pageable pageable) {
+        log.debug("Getting all addresses - pageable: {}", pageable);
+        Page<com.miracle.smart_ecommerce_jpa.domain.user.entity.Address> page = addressRepository.findAll(pageable);
+        List<AddressResponse> responses = page.getContent().stream().map(this::mapToResponse).toList();
+        return PageResponse.of(responses, pageable.getPageNumber(), pageable.getPageSize(), page.getTotalElements());
     }
 
-    /**
-     * Get all addresses for a specific user.
-     */
     @Override
     @Transactional(readOnly = true)
-    public List<AddressResponse> getAddressesByUserId(UUID userId) {
-        log.debug("Getting addresses for user: {}", userId);
-        List<AddressResponse> addresses = addressRepository.findByUserId(userId).stream()
-                .map(this::mapToResponse)
-                .toList();
-        log.info("Found {} addresses for userId: {}", addresses.size(), userId);
-        return addresses;
+    public PageResponse<AddressResponse> getAddressesByUserId(UUID userId, Pageable pageable) {
+        log.debug("Getting addresses for user: {} - pageable: {}", userId, pageable);
+        User user = userRepository.findById(userId)
+                .orElseThrow(() -> ResourceNotFoundException.forResource("User", userId));
+        Page<com.miracle.smart_ecommerce_jpa.domain.user.entity.Address> page = addressRepository.findByUser(user, pageable);
+        List<AddressResponse> responses = page.getContent().stream().map(this::mapToResponse).toList();
+        return PageResponse.of(responses, pageable.getPageNumber(), pageable.getPageSize(), page.getTotalElements());
     }
 
-    /**
-     * Get addresses for a user filtered by type (e.g. shipping, billing).
-     */
     @Override
     @Transactional(readOnly = true)
-    public List<AddressResponse> getAddressesByUserIdAndType(UUID userId, String addressType) {
-        log.debug("Getting {} addresses for user: {}", addressType, userId);
-        List<AddressResponse> addresses = addressRepository.findByUserIdAndAddressType(userId, addressType).stream()
-                .map(this::mapToResponse)
-                .toList();
-        log.info("Found {} {} addresses for userId: {}", addresses.size(), addressType, userId);
-        return addresses;
+    public PageResponse<AddressResponse> getAddressesByUserIdAndType(UUID userId, String addressType, Pageable pageable) {
+        log.debug("Getting {} addresses for user: {} - pageable: {}", addressType, userId, pageable);
+        User user = userRepository.findById(userId)
+                .orElseThrow(() -> ResourceNotFoundException.forResource("User", userId));
+        Page<com.miracle.smart_ecommerce_jpa.domain.user.entity.Address> page = addressRepository.findByUserAndAddressType(user, addressType, pageable);
+        List<AddressResponse> responses = page.getContent().stream().map(this::mapToResponse).toList();
+        return PageResponse.of(responses, pageable.getPageNumber(), pageable.getPageSize(), page.getTotalElements());
     }
 
-    /**
-     * Update an existing address.
-     * Uses JPA dirty checking — no explicit save() needed after mutation.
-     * Cache is evicted to prevent stale data.
-     */
     @Override
     @Transactional
     @CacheEvict(value = ADDRESSES_CACHE, allEntries = true)
@@ -139,11 +121,6 @@ public class AddressServiceImpl implements AddressService {
         return mapToResponse(address);
     }
 
-    /**
-     * Set an address as the default for its user.
-     * Clears any existing default first to ensure only one default per user.
-     * Both operations run in the same transaction for consistency.
-     */
     @Override
     @Transactional
     @CacheEvict(value = ADDRESSES_CACHE, allEntries = true)
@@ -154,18 +131,13 @@ public class AddressServiceImpl implements AddressService {
                 .orElseThrow(() -> ResourceNotFoundException.forResource("Address", id));
 
         // Clear existing default for this user before setting the new one
-        addressRepository.clearDefaultByUserId(address.getUserId());
-        addressRepository.setAsDefault(id);
-
+        addressRepository.clearDefaultByUser(address.getUser());
         address.setIsDefault(true);
-        log.info("Address {} set as default for user {}", id, address.getUserId());
+
+        log.info("Address {} set as default for user {}", id, address.getUser().getId());
         return mapToResponse(address);
     }
 
-    /**
-     * Delete an address by ID.
-     * Cache is evicted after deletion.
-     */
     @Override
     @Transactional
     @CacheEvict(value = ADDRESSES_CACHE, allEntries = true)
@@ -184,7 +156,7 @@ public class AddressServiceImpl implements AddressService {
     private AddressResponse mapToResponse(Address address) {
         return AddressResponse.builder()
                 .id(address.getId())
-                .userId(address.getUserId())
+                .userId(address.getUser() != null ? address.getUser().getId() : null)
                 .addressLine(address.getAddressLine())
                 .city(address.getCity())
                 .region(address.getRegion())

@@ -8,8 +8,6 @@ import jakarta.validation.constraints.*;
 import lombok.*;
 import lombok.experimental.SuperBuilder;
 
-import java.util.UUID;
-
 /**
  * Product Review JPA entity - represents product_review table.
  */
@@ -22,13 +20,15 @@ import java.util.UUID;
 @EqualsAndHashCode(callSuper = true)
 public class ProductReview extends BaseModel {
 
-    @NotNull(message = "User ID is required")
-    @Column(name = "user_id", nullable = false)
-    private UUID userId;
+    @NotNull(message = "User is required")
+    @ManyToOne(fetch = FetchType.LAZY, optional = false)
+    @JoinColumn(name = "user_id", nullable = false)
+    private User user;
 
-    @NotNull(message = "Product ID is required")
-    @Column(name = "product_id", nullable = false)
-    private UUID productId;
+    @NotNull(message = "Product is required")
+    @ManyToOne(fetch = FetchType.LAZY, optional = false)
+    @JoinColumn(name = "product_id", nullable = false)
+    private Product product;
 
     @NotNull(message = "Rating is required")
     @Min(value = 1, message = "Rating must be at least 1")
@@ -39,13 +39,4 @@ public class ProductReview extends BaseModel {
     @Size(max = 2000, message = "Comment cannot exceed 2000 characters")
     @Column(name = "comment", length = 2000)
     private String comment;
-
-    // Relationships
-    @ManyToOne(fetch = FetchType.LAZY)
-    @JoinColumn(name = "user_id", referencedColumnName = "id", insertable = false, updatable = false)
-    private User user;
-
-    @ManyToOne(fetch = FetchType.LAZY)
-    @JoinColumn(name = "product_id", referencedColumnName = "id", insertable = false, updatable = false)
-    private Product product;
 }

@@ -8,13 +8,15 @@ import lombok.experimental.SuperBuilder;
 import org.hibernate.proxy.HibernateProxy;
 
 import java.util.Objects;
-import java.util.UUID;
 
 /**
  * Address JPA entity - represents user_address table.
  */
 @Entity
-@Table(name = "user_address")
+@Table(
+        name = "user_address",
+        indexes = @Index(name = "idx_address_user", columnList = "user_id")
+)
 @Getter
 @Setter
 @ToString
@@ -22,10 +24,6 @@ import java.util.UUID;
 @AllArgsConstructor
 @SuperBuilder
 public class Address extends BaseModel {
-
-    @NotNull(message = "User ID is required")
-    @Column(name = "user_id", nullable = false)
-    private UUID userId;
 
     @NotBlank(message = "Address line is required")
     @Size(max = 255, message = "Address line cannot exceed 255 characters")
@@ -58,9 +56,10 @@ public class Address extends BaseModel {
     @Column(name = "is_default", nullable = false)
     private Boolean isDefault = false;
 
-    // Relationships
-    @ManyToOne(fetch = FetchType.LAZY)
-    @JoinColumn(name = "user_id", referencedColumnName = "id", insertable = false, updatable = false)
+    // Relationship to User
+    @NotNull(message = "User is required")
+    @ManyToOne(fetch = FetchType.LAZY, optional = false)
+    @JoinColumn(name = "user_id", nullable = false)
     @ToString.Exclude
     private User user;
 

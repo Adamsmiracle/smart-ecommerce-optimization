@@ -2,6 +2,7 @@ package com.miracle.smart_ecommerce_jpa.domain.order.mapper;
 
 import com.miracle.smart_ecommerce_jpa.common.util.Utils;
 import com.miracle.smart_ecommerce_jpa.domain.order.entity.PaymentMethod;
+import com.miracle.smart_ecommerce_jpa.domain.user.entity.User;
 import org.springframework.jdbc.core.RowMapper;
 import org.springframework.stereotype.Component;
 
@@ -18,7 +19,7 @@ public class PaymentMethodMapper implements RowMapper<PaymentMethod> {
     public PaymentMethod mapRow(ResultSet rs, int rowNum) throws SQLException {
         return PaymentMethod.builder()
                 .id(Utils.getUUID(rs, "id"))
-                .userId(Utils.getUUID(rs, "user_id"))
+                .user(User.builder().id(Utils.getUUID(rs, "user_id")).build())
                 .paymentType(rs.getString("payment_type"))
                 .provider(rs.getString("provider"))
                 .accountNumber(rs.getString("account_number"))

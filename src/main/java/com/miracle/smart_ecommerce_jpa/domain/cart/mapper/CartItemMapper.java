@@ -18,9 +18,9 @@ public class CartItemMapper implements RowMapper<CartItem> {
     public CartItem mapRow(ResultSet rs, int rowNum) throws SQLException {
         return CartItem.builder()
                 .id(Utils.getUUID(rs, "id"))
-                .cartId(Utils.getUUID(rs, "cart_id"))
-                .productId(Utils.getUUID(rs, "product_id"))
                 .quantity(Utils.getInteger(rs, "quantity"))
                 .build();
+        // Note: cart and product relationships should be loaded separately via JPA
+        // This mapper is primarily for basic field mapping
     }
 }

@@ -1,5 +1,6 @@
 package com.miracle.smart_ecommerce_jpa.domain.review.controller;
 
+import com.miracle.smart_ecommerce_jpa.annotation.RequireRoles;
 import com.miracle.smart_ecommerce_jpa.common.response.ApiResponse;
 import com.miracle.smart_ecommerce_jpa.common.response.PageResponse;
 import com.miracle.smart_ecommerce_jpa.domain.review.dto.CreateReviewRequest;
@@ -24,6 +25,7 @@ import java.util.UUID;
 @RestController
 @RequestMapping("/api/reviews")
 @Tag(name = "Reviews", description = "Product review management APIs")
+@RequireRoles({"ADMIN", "CUSTOMER"})
 public class ReviewController {
 
     private final ReviewService reviewService;

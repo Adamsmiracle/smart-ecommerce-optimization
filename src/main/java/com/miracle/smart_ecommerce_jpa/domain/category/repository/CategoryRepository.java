@@ -30,6 +30,6 @@ public interface CategoryRepository extends JpaRepository<Category, UUID> {
      * Returns Object[] where [0] is Category and [1] is Long product count.
      * Avoids N+1 queries when building category list responses.
      */
-    @Query("SELECT c, COUNT(p) FROM Category c LEFT JOIN Product p ON p.categoryId = c.id GROUP BY c")
+    @Query("SELECT c, COUNT(p) FROM Category c LEFT JOIN Product p ON p.category = c GROUP BY c")
     List<Object[]> findAllWithProductCount();
 }

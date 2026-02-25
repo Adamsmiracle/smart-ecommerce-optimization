@@ -9,6 +9,7 @@ import com.miracle.smart_ecommerce_jpa.domain.cart.repository.CartItemRepository
 import com.miracle.smart_ecommerce_jpa.domain.cart.repository.ShoppingCartRepository;
 import com.miracle.smart_ecommerce_jpa.domain.product.entity.Product;
 import com.miracle.smart_ecommerce_jpa.domain.product.repository.ProductRepository;
+import com.miracle.smart_ecommerce_jpa.domain.user.entity.User;
 import com.miracle.smart_ecommerce_jpa.domain.user.repository.UserRepository;
 import com.miracle.smart_ecommerce_jpa.exception.BadRequestException;
 import com.miracle.smart_ecommerce_jpa.exception.ResourceNotFoundException;
@@ -132,8 +133,8 @@ public class CartServiceImpl implements CartService {
                         () -> {
                             try {
                                 CartItem item = CartItem.builder()
-                                        .cartId(cart.getId())
-                                        .productId(request.getProductId())
+                                        .cart(ShoppingCart.builder().id(cart.getId()).build())
+                                        .product(Product.builder().id(request.getProductId()).build())
                                         .quantity(request.getQuantity())
                                         .build();
                                 cartItemRepository.save(item);
@@ -170,12 +171,12 @@ public class CartServiceImpl implements CartService {
         CartItem item = cartItemRepository.findById(itemId)
                 .orElseThrow(() -> ResourceNotFoundException.forResource("CartItem", itemId));
 
-        if (!item.getCartId().equals(cart.getId())) {
+        if (!item.getCart().getId().equals(cart.getId())) {
             throw new BadRequestException("Item does not belong to user's cart");
         }
 
-        Product product = productRepository.findById(item.getProductId())
-                .orElseThrow(() -> ResourceNotFoundException.forResource("Product", item.getProductId()));
+        Product product = productRepository.findById(item.getProduct().getId())
+                .orElseThrow(() -> ResourceNotFoundException.forResource("Product", item.getProduct().getId()));
 
         if (!product.canBeOrdered(quantity)) {
             throw new BadRequestException(
@@ -206,7 +207,7 @@ public class CartServiceImpl implements CartService {
         CartItem item = cartItemRepository.findById(itemId)
                 .orElseThrow(() -> ResourceNotFoundException.forResource("CartItem", itemId));
 
-        if (!item.getCartId().equals(cart.getId())) {
+        if (!item.getCart().getId().equals(cart.getId())) {
             throw new BadRequestException("Item does not belong to user's cart");
         }
 
@@ -259,7 +260,7 @@ public class CartServiceImpl implements CartService {
                 throw ResourceNotFoundException.forResource("User", userId);
             }
             ShoppingCart newCart = ShoppingCart.builder()
-                    .userId(userId)
+                    .user(User.builder().id(userId).build())
                     .build();
             ShoppingCart saved = cartRepository.save(newCart);
             log.info("Created new cart for user: {}", userId);
@@ -275,12 +276,12 @@ public class CartServiceImpl implements CartService {
         List<CartItem> items = cartItemRepository.findByCartId(cart.getId());
 
         // Batch fetch all products to avoid N+1
-        List<UUID> productIds = items.stream().map(CartItem::getProductId).toList();
+        List<UUID> productIds = items.stream().map(i -> i.getProduct().getId()).toList();
         Map<UUID, Product> productMap = productRepository.findAllById(productIds).stream()
                 .collect(Collectors.toMap(Product::getId, p -> p));
 
         List<CartResponse.CartItemResponse> itemResponses = items.stream()
-                .map(item -> mapToCartItemResponse(item, productMap.get(item.getProductId())))
+                .map(item -> mapToCartItemResponse(item, productMap.get(item.getProduct().getId())))
                 .toList();
 
         int totalItems = itemResponses.stream()
@@ -293,7 +294,7 @@ public class CartServiceImpl implements CartService {
 
         return CartResponse.builder()
                 .id(cart.getId())
-                .userId(cart.getUserId())
+                .userId(cart.getUser().getId())
                 .totalItems(totalItems)
                 .totalValue(totalValue)
                 .createdAt(cart.getCreatedAt())
@@ -313,7 +314,6 @@ public class CartServiceImpl implements CartService {
 
         return CartResponse.CartItemResponse.builder()
                 .id(item.getId())
-                .productId(item.getProductId())
                 .productName(productName)
                 .productImage(productImage)
                 .unitPrice(unitPrice)
@@ -324,3 +324,4 @@ public class CartServiceImpl implements CartService {
                 .build();
     }
 }
+

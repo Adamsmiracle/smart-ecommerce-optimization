@@ -1,5 +1,6 @@
 package com.miracle.smart_ecommerce_jpa.domain.user.service.impl;
 
+import com.miracle.smart_ecommerce_jpa.annotation.CustomTransactional;
 import com.miracle.smart_ecommerce_jpa.common.response.PageResponse;
 import com.miracle.smart_ecommerce_jpa.domain.user.entity.User;
 import com.miracle.smart_ecommerce_jpa.domain.user.dto.request.CreateUserRequest;
@@ -54,7 +55,7 @@ public class UserServiceImpl implements UserService {
      * Result is cached by ID and email after creation.
      */
     @Override
-    @Transactional
+    @CustomTransactional
     @Caching(put = {
             @CachePut(value = USERS_CACHE, key = "'id:' + #result.id"),
             @CachePut(value = USERS_CACHE, key = "'email:' + #result.emailAddress")
@@ -90,7 +91,7 @@ public class UserServiceImpl implements UserService {
      * Result is cached by ID to avoid repeated DB lookups.
      */
     @Override
-    @Transactional(readOnly = true)
+    @CustomTransactional(readOnly = true)
     @Cacheable(value = USERS_CACHE, key = "'id:' + #id")
     public UserResponse getUserById(UUID id) {
         log.debug("Getting user by ID: {}", id);
@@ -104,7 +105,7 @@ public class UserServiceImpl implements UserService {
      * Result is cached by email to avoid repeated DB lookups.
      */
     @Override
-    @Transactional(readOnly = true)
+    @CustomTransactional(readOnly = true)
     @Cacheable(value = USERS_CACHE, key = "'email:' + #email")
     public UserResponse getUserByEmail(String email) {
         log.debug("Getting user by email: {}", email);
@@ -118,7 +119,7 @@ public class UserServiceImpl implements UserService {
      * Not cached due to dynamic nature of pageable parameters.
      */
     @Override
-    @Transactional(readOnly = true)
+    @CustomTransactional(readOnly = true)
     public PageResponse<UserResponse> getAllUsers(Pageable pageable) {
         log.debug("Getting all users - pageable: {}", pageable);
 
@@ -136,7 +137,7 @@ public class UserServiceImpl implements UserService {
      * Not cached due to dynamic nature of keyword and pageable parameters.
      */
     @Override
-    @Transactional(readOnly = true)
+    @CustomTransactional(readOnly = true)
     public PageResponse<UserResponse> searchUsers(String keyword, Pageable pageable) {
         log.debug("Searching users with keyword: {}", keyword);
 
@@ -155,7 +156,7 @@ public class UserServiceImpl implements UserService {
      * All cache entries evicted to handle email key changes cleanly.
      */
     @Override
-    @Transactional
+    @CustomTransactional
     @CacheEvict(value = USERS_CACHE, allEntries = true)
     public UserResponse updateUser(UUID id, UpdateUserRequest request) {
         log.info("Updating user with ID: {}", id);
@@ -186,7 +187,7 @@ public class UserServiceImpl implements UserService {
      * All cache entries evicted after deletion.
      */
     @Override
-    @Transactional
+    @CustomTransactional
     @CacheEvict(value = USERS_CACHE, allEntries = true)
     public void deleteUser(UUID id) {
         log.info("Deleting user with ID: {}", id);
@@ -201,7 +202,7 @@ public class UserServiceImpl implements UserService {
      * Uses existsById to avoid loading the full entity unnecessarily.
      */
     @Override
-    @Transactional
+    @CustomTransactional
     @CacheEvict(value = USERS_CACHE, allEntries = true)
     public void activateUser(UUID id) {
         log.info("Activating user with ID: {}", id);
@@ -217,7 +218,7 @@ public class UserServiceImpl implements UserService {
      * Uses existsById to avoid loading the full entity unnecessarily.
      */
     @Override
-    @Transactional
+    @CustomTransactional
     @CacheEvict(value = USERS_CACHE, allEntries = true)
     public void deactivateUser(UUID id) {
         log.info("Deactivating user with ID: {}", id);
@@ -232,7 +233,7 @@ public class UserServiceImpl implements UserService {
      * Count total users.
      */
     @Override
-    @Transactional(readOnly = true)
+    @CustomTransactional(readOnly = true)
     public long countUsers() {
         return userRepository.count();
     }

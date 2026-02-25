@@ -1,9 +1,10 @@
 package com.miracle.smart_ecommerce_jpa.domain.user.service;
 
+import com.miracle.smart_ecommerce_jpa.common.response.PageResponse;
 import com.miracle.smart_ecommerce_jpa.domain.user.dto.request.CreateAddressRequest;
 import com.miracle.smart_ecommerce_jpa.domain.user.dto.response.AddressResponse;
+import org.springframework.data.domain.Pageable;
 
-import java.util.List;
 import java.util.UUID;
 
 /**
@@ -22,19 +23,19 @@ public interface AddressService {
     AddressResponse getAddressById(UUID id);
 
     /**
-     * Get all addresses (Admin)
+     * Get all addresses (Admin) - paginated
      */
-    List<AddressResponse> getAllAddresses();
+    PageResponse<AddressResponse> getAllAddresses(Pageable pageable);
 
     /**
-     * Get all addresses for a user
+     * Get all addresses for a user - paginated
      */
-    List<AddressResponse> getAddressesByUserId(UUID userId);
+    PageResponse<AddressResponse> getAddressesByUserId(UUID userId, Pageable pageable);
 
     /**
-     * Get addresses by user ID and type (shipping/billing)
+     * Get addresses by user ID and type (shipping/billing) - paginated
      */
-    List<AddressResponse> getAddressesByUserIdAndType(UUID userId, String addressType);
+    PageResponse<AddressResponse> getAddressesByUserIdAndType(UUID userId, String addressType, Pageable pageable);
 
     /**
      * Update an address
@@ -51,4 +52,3 @@ public interface AddressService {
      */
     void deleteAddress(UUID id);
 }
-

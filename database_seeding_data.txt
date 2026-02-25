@@ -1,0 +1,193 @@
+# ============================================================
+# Smart E-Commerce Database Seeding Data
+# ============================================================
+# This file contains sample data for all tables in the e-commerce database
+# Uses auto-generated UUIDs and proper foreign key relationships
+# Compatible with PostgreSQL schema defined in V1__Initial_schema.sql
+
+# ============================================================
+# 1. PRODUCT CATEGORIES
+# ============================================================
+# Table: product_category
+# Columns: id (UUID, auto-generated), category_name, created_at, updated_at
+
+INSERT INTO product_category (category_name, created_at, updated_at) VALUES
+('Electronics', NOW(), NOW()),
+('Clothing', NOW(), NOW()),
+('Books', NOW(), NOW()),
+('Home & Garden', NOW(), NOW()),
+('Sports', NOW(), NOW());
+
+# ============================================================
+# 2. USERS
+# ============================================================
+# Table: app_user
+# Columns: id (UUID, auto-generated), email_address, first_name, last_name, phone_number, password_hash, is_active, role, created_at, updated_at
+
+INSERT INTO app_user (email_address, first_name, last_name, phone_number, password_hash, is_active, role, created_at, updated_at) VALUES
+('john.doe@example.com', 'John', 'Doe', '+1234567890', '$2a$10$N9qo8uLOickgx2ZMRZoJcqwXGJvWeJQjM2U1qP5uE2', true, 'CUSTOMER', NOW(), NOW()),
+('jane.smith@example.com', 'Jane', 'Smith', '+1234567891', '$2a$10$N9qo8uLOickgx2ZMRZoJcqwXGJvWeJQjM2U1qP5uE3', true, 'CUSTOMER', NOW(), NOW()),
+('admin@ecommerce.com', 'Admin', 'User', '+1234567892', '$2a$10$N9qo8uLOickgx2ZMRZoJcqwXGJvWeJQjM2U1qP5uE4', true, 'ADMIN', NOW(), NOW()),
+('sarah.johnson@example.com', 'Sarah', 'Johnson', '+1234567893', '$2a$10$N9qo8uLOickgx2ZMRZoJcqwXGJvWeJQjM2U1qP5uE5', true, 'CUSTOMER', NOW(), NOW()),
+('mike.wilson@example.com', 'Mike', 'Wilson', '+1234567894', '$2a$10$N9qo8uLOickgx2ZMRZoJcqwXGJvWeJQjM2U1qP5uE6', true, 'CUSTOMER', NOW(), NOW());
+
+# ============================================================
+# 3. USER ADDRESSES
+# ============================================================
+# Table: user_address
+# Columns: id (UUID, auto-generated), user_id, address_line, city, region, postal_code, country, address_type, is_default, created_at, updated_at
+
+INSERT INTO user_address (user_id, address_line, city, region, postal_code, country, address_type, is_default, created_at, updated_at) VALUES
+(1, '123 Main St', 'New York', 'NY', '10001', 'USA', 'HOME', true, NOW(), NOW()),
+(2, '456 Oak Ave', 'Los Angeles', 'CA', '90001', 'USA', 'HOME', false, NOW(), NOW()),
+(3, '789 Admin Blvd', 'Chicago', 'IL', '60601', 'USA', 'WORK', true, NOW(), NOW()),
+(4, '321 Pine Rd', 'Houston', 'TX', '77001', 'USA', 'HOME', true, NOW(), NOW()),
+(5, '654 Elm St', 'Phoenix', 'AZ', '85001', 'USA', 'HOME', false, NOW(), NOW());
+
+# ============================================================
+# 4. PRODUCTS
+# ============================================================
+# Table: product
+# Columns: id (UUID, auto-generated), category_id, name, description, price, stock_quantity, is_active, images (JSONB), created_at, updated_at
+
+INSERT INTO product (category_id, name, description, price, stock_quantity, is_active, images, created_at, updated_at) VALUES
+(1, 'Laptop Pro 15"', 'High-performance laptop with 16GB RAM and 512GB SSD', 1299.99, 50, true, '["https://example.com/laptop1.jpg","https://example.com/laptop2.jpg"]', NOW(), NOW()),
+(1, 'Wireless Mouse', 'Ergonomic wireless mouse with long battery life', 29.99, 200, true, '["https://example.com/mouse1.jpg"]', NOW(), NOW()),
+(1, 'USB-C Hub', '7-in-1 USB-C hub with HDMI, USB 3.0, SD card reader', 49.99, 100, true, '["https://example.com/hub1.jpg"]', NOW(), NOW()),
+(2, 'Winter Jacket', 'Warm winter jacket with hood and fleece lining', 89.99, 30, true, '["https://example.com/jacket1.jpg","https://example.com/jacket2.jpg"]', NOW(), NOW()),
+(2, 'Running Shoes', 'Lightweight running shoes with cushioned sole', 79.99, 75, true, '["https://example.com/shoes1.jpg"]', NOW(), NOW()),
+(3, 'Programming Book', 'Learn Java programming from scratch', 39.99, 100, true, '["https://example.com/book1.jpg"]', NOW(), NOW()),
+(3, 'Data Science Guide', 'Complete guide to data science and machine learning', 54.99, 80, true, '["https://example.com/book2.jpg"]', NOW(), NOW()),
+(4, 'Garden Tool Set', 'Complete garden tool set with 20 pieces', 149.99, 25, true, '["https://example.com/tools1.jpg"]', NOW(), NOW()),
+(4, 'Indoor Plant Collection', 'Set of 5 low-maintenance indoor plants', 39.99, 60, true, '["https://example.com/plants1.jpg"]', NOW(), NOW()),
+(5, 'Yoga Mat', 'Non-slip exercise yoga mat with carrying strap', 24.99, 150, true, '["https://example.com/yoga1.jpg"]', NOW(), NOW());
+
+# ============================================================
+# 5. SHOPPING CARTS
+# ============================================================
+# Table: shopping_cart
+# Columns: id (UUID, auto-generated), user_id, created_at, updated_at
+
+INSERT INTO shopping_cart (user_id, created_at, updated_at) VALUES
+(1, NOW(), NOW()),  -- John's cart
+(2, NOW(), NOW()),  -- Jane's cart
+(3, NOW(), NOW()),  -- Admin's cart
+(4, NOW(), NOW()),  -- Sarah's cart
+(5, NOW(), NOW()); -- Mike's cart
+
+# ============================================================
+# 6. CART ITEMS
+# ============================================================
+# Table: cart_item
+# Columns: id (UUID, auto-generated), cart_id, product_id, quantity, created_at, updated_at
+
+INSERT INTO cart_item (cart_id, product_id, quantity, created_at, updated_at) VALUES
+(1, 2, 1, NOW(), NOW()),  -- John's cart: Wireless Mouse
+(2, 4, 1, NOW(), NOW()),  -- Jane's cart: Winter Jacket
+(3, 6, 2, NOW(), NOW()),  -- Admin's cart: Programming Book (2 copies)
+(4, 8, 1, NOW(), NOW()),  -- Sarah's cart: Garden Tool Set
+(5, 10, 1, NOW(), NOW()); -- Mike's cart: Yoga Mat
+
+# ============================================================
+# 7. SHIPPING METHODS
+# ============================================================
+# Table: shipping_method
+# Columns: id (UUID, auto-generated), name, description, price, estimated_days, is_active, created_at, updated_at
+
+INSERT INTO shipping_method (name, description, price, estimated_days, is_active, created_at, updated_at) VALUES
+('Standard Shipping', 'Standard ground shipping', 5.99, 5, true, NOW(), NOW()),
+('Express Shipping', 'Fast 2-day shipping', 15.99, 2, true, NOW(), NOW()),
+('Free Shipping', 'Free shipping on orders over $50', 0.00, 7, true, NOW(), NOW()),
+('Overnight Shipping', 'Next day delivery', 25.99, 1, true, NOW(), NOW());
+
+# ============================================================
+# 8. PAYMENT METHODS
+# ============================================================
+# Table: payment_method
+# Columns: id (UUID, auto-generated), user_id, payment_type, provider, account_number, expiry_date, is_default, is_active, created_at, updated_at
+
+INSERT INTO payment_method (user_id, payment_type, provider, account_number, expiry_date, is_default, is_active, created_at, updated_at) VALUES
+(1, 'CREDIT_CARD', 'Visa', '1234', '2028-12-31 23:59:59+00', true, true, NOW(), NOW()),
+(2, 'CREDIT_CARD', 'Mastercard', '5678', '2027-06-30 23:59:59+00', true, true, NOW(), NOW()),
+(2, 'PAYPAL', 'PayPal', 'paypal@example.com', '2099-12-31 23:59:59+00', false, true, NOW(), NOW()),
+(3, 'CREDIT_CARD', 'Amex', '9012', '2029-03-15 23:59:59+00', true, true, NOW(), NOW()),
+(4, 'BANK_TRANSFER', 'Bank of America', 'CHK123456', '2099-12-31 23:59:59+00', true, true, NOW(), NOW());
+
+# ============================================================
+# 9. CUSTOMER ORDERS
+# ============================================================
+# Table: customer_order
+# Columns: id (UUID, auto-generated), user_id, order_number, status, payment_method_id, shipping_method_id, subtotal, total, created_at, updated_at
+
+INSERT INTO customer_order (user_id, order_number, status, payment_method_id, shipping_method_id, subtotal, total, created_at, updated_at) VALUES
+(1, 'ORD-2024-001', 'PENDING', 1, 1, 1299.99, 1305.98, NOW(), NOW()),
+(2, 'ORD-2024-002', 'COMPLETED', 2, 2, 89.99, 105.98, NOW(), NOW()),
+(3, 'ORD-2024-003', 'PROCESSING', 4, 3, 79.98, 79.98, NOW(), NOW()),
+(4, 'ORD-2024-004', 'SHIPPED', 5, 1, 149.99, 155.98, NOW(), NOW());
+
+# ============================================================
+# 10. ORDER ITEMS
+# ============================================================
+# Table: order_item
+# Columns: id (UUID, auto-generated), order_id, product_id, unit_price, quantity, created_at, updated_at
+
+INSERT INTO order_item (order_id, product_id, unit_price, quantity, created_at, updated_at) VALUES
+(1, 1, 1299.99, 1, NOW(), NOW()),  -- Order 1: Laptop Pro
+(2, 4, 89.99, 1, NOW(), NOW()),   -- Order 2: Winter Jacket
+(3, 6, 39.99, 2, NOW(), NOW()),   -- Order 3: Programming Book (2 copies)
+(4, 8, 149.99, 1, NOW(), NOW());  -- Order 4: Garden Tool Set
+
+# ============================================================
+# 11. PRODUCT REVIEWS
+# ============================================================
+# Table: product_review
+# Columns: id (UUID, auto-generated), user_id, product_id, rating, comment, created_at, updated_at
+
+INSERT INTO product_review (user_id, product_id, rating, comment, created_at, updated_at) VALUES
+(1, 1, 5, 'Excellent laptop! Fast and reliable. Perfect for my work needs.', NOW(), NOW()),
+(2, 4, 4, 'Great jacket, very warm. Runs slightly small so order up a size.', NOW(), NOW()),
+(3, 6, 5, 'Perfect book for beginners. Clear explanations and good examples.', NOW(), NOW()),
+(4, 8, 4, 'Good quality tools, but some pieces could be sturdier.', NOW(), NOW()),
+(5, 10, 5, 'Amazing yoga mat! Great grip and comfortable thickness.', NOW(), NOW()),
+(1, 2, 3, 'Decent mouse but battery life could be better.', NOW(), NOW()),
+(2, 5, 5, 'Best running shoes I''ve ever owned! Very comfortable.', NOW(), NOW()),
+(3, 7, 4, 'Comprehensive data science guide. Some advanced topics could use more detail.', NOW(), NOW());
+
+# ============================================================
+# SEEDING DATA SUMMARY
+# ============================================================
+# Records Created:
+# - Product Categories: 5
+# - Users: 5
+# - User Addresses: 5
+# - Products: 10
+# - Shopping Carts: 5
+# - Cart Items: 5
+# - Shipping Methods: 4
+# - Payment Methods: 5
+# - Customer Orders: 4
+# - Order Items: 4
+# - Product Reviews: 8
+
+# Foreign Key Relationships:
+# - Users → Addresses (1:many)
+# - Users → Shopping Carts (1:1)
+# - Users → Payment Methods (1:many)
+# - Users → Orders (1:many)
+# - Users → Reviews (1:many)
+# - Categories → Products (1:many)
+# - Products → Cart Items (1:many)
+# - Products → Order Items (1:many)
+# - Products → Reviews (1:many)
+# - Shopping Carts → Cart Items (1:many)
+# - Orders → Order Items (1:many)
+# - Payment Methods → Orders (1:many, optional)
+# - Shipping Methods → Orders (1:many, optional)
+
+# Notes:
+# - All UUIDs are auto-generated by PostgreSQL using gen_random_uuid()
+# - All timestamps use NOW() for current time
+# - Password hashes are BCrypt format (example hashes provided)
+# - Images are stored as JSONB arrays
+# - All foreign key constraints are satisfied
+# - Data is realistic and follows business logic

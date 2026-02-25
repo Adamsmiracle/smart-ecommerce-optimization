@@ -2,6 +2,8 @@ package com.miracle.smart_ecommerce_jpa.domain.review.mapper;
 
 import com.miracle.smart_ecommerce_jpa.common.util.Utils;
 import com.miracle.smart_ecommerce_jpa.domain.review.entity.ProductReview;
+import com.miracle.smart_ecommerce_jpa.domain.user.entity.User;
+import com.miracle.smart_ecommerce_jpa.domain.product.entity.Product;
 import org.springframework.jdbc.core.RowMapper;
 import org.springframework.stereotype.Component;
 
@@ -19,8 +21,8 @@ public class ProductReviewMapper implements RowMapper<ProductReview> {
     public ProductReview mapRow(ResultSet rs, int rowNum) throws SQLException {
         return ProductReview.builder()
                 .id(Utils.getUUID(rs, "id"))
-                .userId(Utils.getUUID(rs, "user_id"))
-                .productId(Utils.getUUID(rs, "product_id"))
+                .user(User.builder().id(Utils.getUUID(rs, "user_id")).build())
+                .product(Product.builder().id(Utils.getUUID(rs, "product_id")).build())
                 .rating(Utils.getInteger(rs, "rating"))
                 .comment(rs.getString("comment"))
                 .createdAt(Utils.getOffsetDateTime(rs, "created_at"))

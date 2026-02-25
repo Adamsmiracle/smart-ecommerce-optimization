@@ -1,14 +1,16 @@
 package com.miracle.smart_ecommerce_jpa.domain.order.service;
 
+import com.miracle.smart_ecommerce_jpa.annotation.CustomTransactional;
 import com.miracle.smart_ecommerce_jpa.common.response.PageResponse;
 import com.miracle.smart_ecommerce_jpa.domain.order.entity.CustomerOrder;
 import com.miracle.smart_ecommerce_jpa.domain.order.entity.CustomerOrder.OrderStatus;
-import com.miracle.smart_ecommerce_jpa.domain.order.entity.CustomerOrder.PaymentStatus;
 import com.miracle.smart_ecommerce_jpa.domain.order.entity.OrderItem;
+import com.miracle.smart_ecommerce_jpa.domain.order.entity.PaymentMethod;
 import com.miracle.smart_ecommerce_jpa.domain.order.entity.ShippingMethod;
 import com.miracle.smart_ecommerce_jpa.domain.order.repository.OrderItemRepository;
 import com.miracle.smart_ecommerce_jpa.domain.order.repository.OrderRepository;
 import com.miracle.smart_ecommerce_jpa.domain.order.repository.ShippingMethodRepository;
+import com.miracle.smart_ecommerce_jpa.domain.order.repository.PaymentMethodRepository;
 import com.miracle.smart_ecommerce_jpa.domain.product.entity.Product;
 import com.miracle.smart_ecommerce_jpa.domain.product.repository.ProductRepository;
 import com.miracle.smart_ecommerce_jpa.domain.order.dto.CreateOrderRequest;
@@ -67,6 +69,7 @@ public class OrderServiceImpl implements OrderService {
     private final UserRepository userRepository;
     private final ProductRepository productRepository;
     private final ShippingMethodRepository shippingMethodRepository;
+    private final PaymentMethodRepository paymentMethodRepository;
 
     /**
      * Create a new order.
@@ -75,7 +78,7 @@ public class OrderServiceImpl implements OrderService {
      * Rolls back entirely if any product is out of stock or not found.
      */
     @Override
-    @Transactional
+    @CustomTransactional
     @CacheEvict(value = ORDERS_CACHE, allEntries = true)
     public OrderResponse createOrder(CreateOrderRequest request) {
         log.info("Creating order for user: {}", request.getUserId());
@@ -117,12 +120,13 @@ public class OrderServiceImpl implements OrderService {
         try {
             // Save order
             CustomerOrder order = CustomerOrder.builder()
-                    .userId(request.getUserId())
+                    .user(userRepository.findById(request.getUserId()).orElseThrow(() -> ResourceNotFoundException.forResource("User", request.getUserId())))
                     .orderNumber(CustomerOrder.generateOrderNumber())
                     .status(OrderStatus.PENDING.name().toLowerCase())
-                    .paymentStatus(PaymentStatus.PENDING.name().toLowerCase())
-                    .paymentMethodId(request.getPaymentMethodId())
-                    .shippingMethodId(request.getShippingMethodId())
+                    .paymentMethod(request.getPaymentMethodId() != null ?
+                            paymentMethodRepository.findById(request.getPaymentMethodId()).orElse(null) : null)
+                    .shippingMethod(request.getShippingMethodId() != null ?
+                            shippingMethodRepository.findById(request.getShippingMethodId()).orElse(null) : null)
                     .subtotal(subtotal)
                     .total(total)
                     .build();
@@ -134,14 +138,15 @@ public class OrderServiceImpl implements OrderService {
                 OrderItem item = orderItems.get(i);
                 CreateOrderRequest.OrderItemRequest itemRequest = request.getItems().get(i);
 
-                item.setOrderId(saved.getId());
+                // set the owning order before saving
+                item.setOrder(saved);
                 orderItemRepository.save(item);
 
                 // Deduct stock: fetch current stock and subtract quantity
-                Product product = productRepository.findById(item.getProductId())
-                        .orElseThrow(() -> ResourceNotFoundException.forResource("Product", item.getProductId()));
+                Product product = productRepository.findById(item.getProduct().getId())
+                        .orElseThrow(() -> ResourceNotFoundException.forResource("Product", item.getProduct().getId()));
                 int newStock = product.getStockQuantity() - itemRequest.getQuantity();
-                productRepository.updateStock(item.getProductId(), newStock);
+                productRepository.updateStock(product.getId(), newStock);
             }
 
             log.info("Order created with ID: {} and number: {}", saved.getId(), saved.getOrderNumber());
@@ -161,7 +166,7 @@ public class OrderServiceImpl implements OrderService {
      * Result cached by ID.
      */
     @Override
-    @Transactional(readOnly = true)
+    @CustomTransactional(readOnly = true)
     @Cacheable(value = ORDERS_CACHE, key = "'id:' + #id")
     public OrderResponse getOrderById(UUID id) {
         log.debug("Getting order by ID: {}", id);
@@ -175,7 +180,7 @@ public class OrderServiceImpl implements OrderService {
      * Result cached by order number.
      */
     @Override
-    @Transactional(readOnly = true)
+    @CustomTransactional(readOnly = true)
     @Cacheable(value = ORDERS_CACHE, key = "'number:' + #orderNumber")
     public OrderResponse getOrderByOrderNumber(String orderNumber) {
         log.debug("Getting order by order number: {}", orderNumber);
@@ -188,7 +193,7 @@ public class OrderServiceImpl implements OrderService {
      * Get all orders with pagination.
      */
     @Override
-    @Transactional(readOnly = true)
+    @CustomTransactional(readOnly = true)
     public PageResponse<OrderResponse> getAllOrders(Pageable pageable) {
         log.debug("Getting all orders - pageable: {}", pageable);
 
@@ -205,7 +210,7 @@ public class OrderServiceImpl implements OrderService {
      * Validates user existence before querying.
      */
     @Override
-    @Transactional(readOnly = true)
+    @CustomTransactional(readOnly = true)
     public PageResponse<OrderResponse> getOrdersByUserId(UUID userId, Pageable pageable) {
         log.debug("Getting orders for user: {}", userId);
 
@@ -225,7 +230,7 @@ public class OrderServiceImpl implements OrderService {
      * Get orders by status with pagination.
      */
     @Override
-    @Transactional(readOnly = true)
+    @CustomTransactional(readOnly = true)
     public PageResponse<OrderResponse> getOrdersByStatus(String status, Pageable pageable) {
         log.debug("Getting orders by status: {}", status);
 
@@ -243,7 +248,7 @@ public class OrderServiceImpl implements OrderService {
      * All cache entries evicted after update.
      */
     @Override
-    @Transactional
+    @CustomTransactional
     @CacheEvict(value = ORDERS_CACHE, allEntries = true)
     public OrderResponse updateOrderStatus(UUID id, String status) {
         log.info("Updating order status: {} to {}", id, status);
@@ -273,7 +278,7 @@ public class OrderServiceImpl implements OrderService {
      * All cache entries evicted after update.
      */
     @Override
-    @Transactional
+    @CustomTransactional
     @CacheEvict(value = ORDERS_CACHE, allEntries = true)
     public OrderResponse updatePaymentStatus(UUID id, String paymentStatus) {
         log.info("Updating payment status for order: {} to {}", id, paymentStatus);
@@ -302,7 +307,7 @@ public class OrderServiceImpl implements OrderService {
      * Stock restoration and status update are atomic within the same transaction.
      */
     @Override
-    @Transactional
+    @CustomTransactional
     @CacheEvict(value = ORDERS_CACHE, allEntries = true)
     public OrderResponse cancelOrder(UUID id) {
         log.info("Cancelling order: {}", id);
@@ -319,10 +324,10 @@ public class OrderServiceImpl implements OrderService {
         // Restore product stock atomically within the same transaction
         List<OrderItem> items = orderItemRepository.findByOrderId(id);
         for (OrderItem item : items) {
-            Product product = productRepository.findById(item.getProductId())
-                    .orElseThrow(() -> ResourceNotFoundException.forResource("Product", item.getProductId()));
+            Product product = productRepository.findById(item.getProduct().getId())
+                    .orElseThrow(() -> ResourceNotFoundException.forResource("Product", item.getProduct().getId()));
             int restoredStock = product.getStockQuantity() + item.getQuantity();
-            productRepository.updateStock(item.getProductId(), restoredStock);
+            productRepository.updateStock(product.getId(), restoredStock);
         }
 
         log.info("Order cancelled and stock restored for order: {}", id);
@@ -339,7 +344,7 @@ public class OrderServiceImpl implements OrderService {
      * All changes are atomic within the same transaction.
      */
     @Override
-    @Transactional
+    @CustomTransactional
     @CacheEvict(value = ORDERS_CACHE, allEntries = true)
     public OrderResponse updateOrder(UUID id, UpdateOrderRequest request) {
         log.info("Updating order: {}", id);
@@ -350,17 +355,17 @@ public class OrderServiceImpl implements OrderService {
         boolean changed = false;
 
         if (request.getPaymentMethodId() != null &&
-                !request.getPaymentMethodId().equals(order.getPaymentMethodId())) {
-            order.setPaymentMethodId(request.getPaymentMethodId());
+                !request.getPaymentMethodId().equals(order.getPaymentMethod() != null ? order.getPaymentMethod().getId() : null)) {
+            order.setPaymentMethod(request.getPaymentMethodId() != null ? paymentMethodRepository.findById(request.getPaymentMethodId()).orElse(null) : null);
             changed = true;
         }
 
         if (request.getShippingMethodId() != null &&
-                !request.getShippingMethodId().equals(order.getShippingMethodId())) {
+                !request.getShippingMethodId().equals(order.getShippingMethod() != null ? order.getShippingMethod().getId() : null)) {
             if (!shippingMethodRepository.existsById(request.getShippingMethodId())) {
                 throw ResourceNotFoundException.forResource("ShippingMethod", request.getShippingMethodId());
             }
-            order.setShippingMethodId(request.getShippingMethodId());
+            order.setShippingMethod(shippingMethodRepository.findById(request.getShippingMethodId()).orElse(null));
             changed = true;
         }
 
@@ -379,14 +384,14 @@ public class OrderServiceImpl implements OrderService {
 
                     if (itemReq.getQuantity() == null || itemReq.getQuantity() <= 0) {
                         // Remove item — restore its stock
-                        stockDeltas.merge(existing.getProductId(), existing.getQuantity(), Integer::sum);
+                        stockDeltas.merge(existing.getProduct().getId(), existing.getQuantity(), Integer::sum);
                         changed = true;
                         continue;
                     }
 
                     if (!existing.getQuantity().equals(itemReq.getQuantity())) {
                         int qtyDiff = itemReq.getQuantity() - existing.getQuantity();
-                        stockDeltas.merge(existing.getProductId(), -qtyDiff, Integer::sum);
+                        stockDeltas.merge(existing.getProduct().getId(), -qtyDiff, Integer::sum);
                         existing.setQuantity(itemReq.getQuantity());
                         changed = true;
                     }
@@ -406,7 +411,6 @@ public class OrderServiceImpl implements OrderService {
                     }
 
                     OrderItem newItem = OrderItem.fromProduct(product, itemReq.getQuantity());
-                    newItem.setOrderId(id);
                     resultingItems.add(newItem);
                     stockDeltas.merge(product.getId(), -itemReq.getQuantity(), Integer::sum);
                     changed = true;
@@ -429,7 +433,8 @@ public class OrderServiceImpl implements OrderService {
                 // Persist items: delete all and re-insert
                 orderItemRepository.deleteByOrderId(id);
                 for (OrderItem item : resultingItems) {
-                    item.setOrderId(id);
+                    // ensure order relation set
+                    item.setOrder(order);
                     orderItemRepository.save(item);
                 }
 
@@ -443,7 +448,7 @@ public class OrderServiceImpl implements OrderService {
 
                 // Recalculate total with shipping
                 BigDecimal shippingCost = BigDecimal.ZERO;
-                UUID shippingId = order.getShippingMethodId();
+                UUID shippingId = order.getShippingMethod() != null ? order.getShippingMethod().getId() : null;
                 if (shippingId != null) {
                     shippingMethodRepository.findById(shippingId).ifPresent(sm -> {
                         // handled below
@@ -475,7 +480,7 @@ public class OrderServiceImpl implements OrderService {
      * CascadeType.ALL on orderItems means items are deleted automatically.
      */
     @Override
-    @Transactional
+    @CustomTransactional
     @CacheEvict(value = ORDERS_CACHE, allEntries = true)
     public void deleteOrder(UUID id) {
         log.info("Deleting order: {}", id);
@@ -497,7 +502,7 @@ public class OrderServiceImpl implements OrderService {
      * Count total orders.
      */
     @Override
-    @Transactional(readOnly = true)
+    @CustomTransactional(readOnly = true)
     public long countOrders() {
         return orderRepository.count();
     }
@@ -506,7 +511,7 @@ public class OrderServiceImpl implements OrderService {
      * Count orders by status.
      */
     @Override
-    @Transactional(readOnly = true)
+    @CustomTransactional(readOnly = true)
     public long countOrdersByStatus(String status) {
         return orderRepository.countByStatus(status.toLowerCase());
     }
@@ -518,12 +523,11 @@ public class OrderServiceImpl implements OrderService {
     private OrderResponse mapToResponse(CustomerOrder order) {
         return OrderResponse.builder()
                 .id(order.getId())
-                .userId(order.getUserId())
+                .userId(order.getUser().getId())
                 .orderNumber(order.getOrderNumber())
                 .status(order.getStatus())
-                .paymentStatus(order.getPaymentStatus())
-                .paymentMethodId(order.getPaymentMethodId())
-                .shippingMethodId(order.getShippingMethodId())
+                .paymentMethodId(order.getPaymentMethod() != null ? order.getPaymentMethod().getId() : null)
+                .shippingMethodId(order.getShippingMethod() != null ? order.getShippingMethod().getId() : null)
                 .subtotal(order.getSubtotal())
                 .total(order.getTotal())
                 .itemCount(order.getItemCount())
@@ -552,16 +556,16 @@ public class OrderServiceImpl implements OrderService {
         }
 
         // Batch fetch all products to avoid N+1
-        List<UUID> productIds = items.stream().map(OrderItem::getProductId).toList();
+        List<UUID> productIds = items.stream().map(item -> item.getProduct().getId()).toList();
         Map<UUID, Product> productMap = productRepository.findAllById(productIds).stream()
                 .collect(Collectors.toMap(Product::getId, p -> p));
 
         return items.stream()
                 .map(item -> {
-                    Product product = productMap.get(item.getProductId());
+                    Product product = item.getProduct();
                     return OrderResponse.OrderItemResponse.builder()
                             .id(item.getId())
-                            .productId(item.getProductId())
+                            .productId(product.getId())
                             .productName(product != null ? product.getName() : null)
                             .unitPrice(item.getUnitPrice())
                             .quantity(item.getQuantity())

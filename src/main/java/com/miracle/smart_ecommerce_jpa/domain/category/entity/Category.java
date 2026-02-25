@@ -21,13 +21,14 @@ import java.util.Objects;
 @Getter
 @Setter
 @ToString
-@RequiredArgsConstructor
+@NoArgsConstructor
+@AllArgsConstructor
 @SuperBuilder
 public class Category extends BaseModel {
 
     @NotBlank(message = "Category name is required")
     @Size(min = 2, max = 100, message = "Category name must be between 2 and 100 characters")
-    @Column(name = "category_name", nullable = false, length = 100)
+    @Column(name = "category_name", nullable = false, length = 100, unique = true)
     private String categoryName;
 
     @Override
@@ -46,4 +47,3 @@ public class Category extends BaseModel {
         return this instanceof HibernateProxy ? ((HibernateProxy) this).getHibernateLazyInitializer().getPersistentClass().hashCode() : getClass().hashCode();
     }
 }
-

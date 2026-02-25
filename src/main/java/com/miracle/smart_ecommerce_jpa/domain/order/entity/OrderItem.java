@@ -8,11 +8,8 @@ import jakarta.validation.constraints.Min;
 import jakarta.validation.constraints.NotNull;
 import lombok.*;
 import lombok.experimental.SuperBuilder;
-import org.hibernate.proxy.HibernateProxy;
 
 import java.math.BigDecimal;
-import java.util.Objects;
-import java.util.UUID;
 
 /**
  * Order Item JPA entity - represents order_item table.
@@ -27,13 +24,17 @@ import java.util.UUID;
 @SuperBuilder
 public class OrderItem extends BaseModel {
 
-    @NotNull(message = "Order ID is required")
-    @Column(name = "order_id", nullable = false)
-    private UUID orderId;
+    @NotNull(message = "Order is required")
+    @ManyToOne(fetch = FetchType.LAZY, optional = false)
+    @JoinColumn(name = "order_id", nullable = false)
+    @ToString.Exclude
+    private CustomerOrder order;
 
-    @NotNull(message = "Product ID is required")
-    @Column(name = "product_id", nullable = false)
-    private UUID productId;
+    @NotNull(message = "Product is required")
+    @ManyToOne(fetch = FetchType.LAZY, optional = false)
+    @JoinColumn(name = "product_id", nullable = false)
+    @ToString.Exclude
+    private Product product;
 
     @NotNull(message = "Unit price is required")
     @DecimalMin(value = "0.00", message = "Unit price must be non-negative")
@@ -45,18 +46,9 @@ public class OrderItem extends BaseModel {
     @Column(name = "quantity", nullable = false)
     private Integer quantity;
 
-    // Relationships
-    @ManyToOne(fetch = FetchType.LAZY)
-    @JoinColumn(name = "order_id", referencedColumnName = "id", insertable = false, updatable = false)
-    @ToString.Exclude
-    private CustomerOrder order;
-
-    @ManyToOne(fetch = FetchType.LAZY)
-    @JoinColumn(name = "product_id", referencedColumnName = "id", insertable = false, updatable = false)
-    @ToString.Exclude
-    private Product product;
-
-    // Derived total price (not stored in DB). Computed when needed.
+    /**
+     * Derived total price (not stored in DB). Computed when needed.
+     */
     public BigDecimal getTotalPrice() {
         if (unitPrice == null || quantity == null) return BigDecimal.ZERO;
         return unitPrice.multiply(BigDecimal.valueOf(quantity));
@@ -76,26 +68,9 @@ public class OrderItem extends BaseModel {
         BigDecimal unitPrice = product.getPrice();
 
         return OrderItem.builder()
-                .productId(product.getId())
                 .product(product)
                 .unitPrice(unitPrice)
                 .quantity(quantity)
                 .build();
-    }
-
-    @Override
-    public final boolean equals(Object o) {
-        if (this == o) return true;
-        if (o == null) return false;
-        Class<?> oEffectiveClass = o instanceof HibernateProxy ? ((HibernateProxy) o).getHibernateLazyInitializer().getPersistentClass() : o.getClass();
-        Class<?> thisEffectiveClass = this instanceof HibernateProxy ? ((HibernateProxy) this).getHibernateLazyInitializer().getPersistentClass() : this.getClass();
-        if (thisEffectiveClass != oEffectiveClass) return false;
-        OrderItem orderItem = (OrderItem) o;
-        return getId() != null && Objects.equals(getId(), orderItem.getId());
-    }
-
-    @Override
-    public final int hashCode() {
-        return this instanceof HibernateProxy ? ((HibernateProxy) this).getHibernateLazyInitializer().getPersistentClass().hashCode() : getClass().hashCode();
     }
 }

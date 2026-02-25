@@ -3,6 +3,7 @@ package com.miracle.smart_ecommerce_jpa.domain.product.entity;
 import com.miracle.smart_ecommerce_jpa.domain.BaseModel;
 import com.miracle.smart_ecommerce_jpa.domain.category.entity.Category;
 import com.miracle.smart_ecommerce_jpa.domain.review.entity.ProductReview;
+import com.miracle.smart_ecommerce_jpa.config.JsonbListStringConverter;
 import jakarta.persistence.*;
 import jakarta.validation.constraints.*;
 import lombok.*;
@@ -11,7 +12,6 @@ import lombok.experimental.SuperBuilder;
 import java.math.BigDecimal;
 import java.util.ArrayList;
 import java.util.List;
-import java.util.UUID;
 
 /**
  * Product JPA entity - represents product table.
@@ -24,10 +24,6 @@ import java.util.UUID;
 @SuperBuilder
 @EqualsAndHashCode(callSuper = true)
 public class Product extends BaseModel {
-
-    @NotNull(message = "Category ID is required")
-    @Column(name = "category_id", nullable = false)
-    private UUID categoryId;
 
     @NotBlank(message = "Product name is required")
     @Size(min = 2, max = 255, message = "Product name must be between 2 and 255 characters")
@@ -51,19 +47,22 @@ public class Product extends BaseModel {
     private Integer stockQuantity = 0;
 
     @Builder.Default
-    @Column(name = "is_active")
+    @Column(name = "is_active", nullable = false)
     private Boolean isActive = true;
 
     // JSONB field stored as List<String> for image URLs
-    @Column(name = "images", columnDefinition = "jsonb")
+    @Convert(converter = JsonbListStringConverter.class)
+    @Column(name = "images", columnDefinition = "TEXT")
     @Builder.Default
     private List<String> images = new ArrayList<>();
 
-    // Relationships
-    @ManyToOne(fetch = FetchType.LAZY)
-    @JoinColumn(name = "category_id", referencedColumnName = "id", insertable = false, updatable = false)
+    // Relationship to Category
+    @NotNull(message = "Category is required")
+    @ManyToOne(fetch = FetchType.LAZY, optional = false)
+    @JoinColumn(name = "category_id", nullable = false)
     private Category category;
 
+    // Relationship to ProductReview
     @OneToMany(mappedBy = "product", cascade = CascadeType.ALL, fetch = FetchType.LAZY)
     @Builder.Default
     private List<ProductReview> reviews = new ArrayList<>();

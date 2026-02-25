@@ -5,6 +5,7 @@ import com.miracle.smart_ecommerce_jpa.domain.order.dto.PaymentMethodRequest;
 import com.miracle.smart_ecommerce_jpa.domain.order.dto.PaymentMethodResponse;
 import com.miracle.smart_ecommerce_jpa.domain.order.entity.PaymentMethod;
 import com.miracle.smart_ecommerce_jpa.domain.order.repository.PaymentMethodRepository;
+import com.miracle.smart_ecommerce_jpa.domain.user.entity.User;
 import com.miracle.smart_ecommerce_jpa.domain.user.repository.UserRepository;
 import com.miracle.smart_ecommerce_jpa.exception.ResourceNotFoundException;
 import lombok.RequiredArgsConstructor;
@@ -63,7 +64,7 @@ public class PaymentMethodServiceImpl implements PaymentMethodService {
 
         try {
             PaymentMethod pm = PaymentMethod.builder()
-                    .userId(request.getUserId())
+                    .user(User.builder().id(request.getUserId()).build())
                     .paymentType(request.getPaymentType())
                     .provider(request.getProvider())
                     .accountNumber(request.getAccountNumber())
@@ -132,7 +133,7 @@ public class PaymentMethodServiceImpl implements PaymentMethodService {
             throw ResourceNotFoundException.forResource("User", userId);
         }
 
-        Page<PaymentMethod> page = repository.findByUserId(userId, pageable);
+        Page<PaymentMethod> page = repository.findByUser_Id(userId, pageable);
         List<PaymentMethodResponse> responses = page.getContent().stream()
                 .map(this::toResponse)
                 .toList();
@@ -152,7 +153,7 @@ public class PaymentMethodServiceImpl implements PaymentMethodService {
             throw ResourceNotFoundException.forResource("User", userId);
         }
 
-        return repository.findByUserIdAndIsActiveTrue(userId).stream()
+        return repository.findByUser_IdAndIsActiveTrue(userId).stream()
                 .map(this::toResponse)
                 .toList();
     }
@@ -171,11 +172,11 @@ public class PaymentMethodServiceImpl implements PaymentMethodService {
         PaymentMethod pm = repository.findById(id)
                 .orElseThrow(() -> ResourceNotFoundException.forResource("PaymentMethod", id));
 
-        repository.clearDefaultByUserId(pm.getUserId());
+        repository.clearDefaultByUserId(pm.getUser().getId());
         repository.setAsDefault(id);
 
         pm.setIsDefault(true);
-        log.info("Payment method {} set as default for user {}", id, pm.getUserId());
+        log.info("Payment method {} set as default for user {}", id, pm.getUser().getId());
         return toResponse(pm);
     }
 
@@ -227,7 +228,7 @@ public class PaymentMethodServiceImpl implements PaymentMethodService {
     private PaymentMethodResponse toResponse(PaymentMethod pm) {
         return PaymentMethodResponse.builder()
                 .id(pm.getId())
-                .userId(pm.getUserId())
+                .userId(pm.getUser() != null ? pm.getUser().getId() : null)
                 .paymentType(pm.getPaymentType())
                 .provider(pm.getProvider())
                 .maskedAccount(pm.getMaskedAccountNumber())

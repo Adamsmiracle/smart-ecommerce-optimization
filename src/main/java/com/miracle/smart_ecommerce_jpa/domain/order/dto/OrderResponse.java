@@ -24,7 +24,6 @@ public class OrderResponse {
     private String customerName;
     private String orderNumber;
     private String status;
-    private String paymentStatus;
     private UUID paymentMethodId;
     private UUID shippingMethodId;
     private BigDecimal subtotal;

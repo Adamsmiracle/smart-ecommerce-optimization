@@ -10,13 +10,17 @@ import org.hibernate.proxy.HibernateProxy;
 
 import java.math.BigDecimal;
 import java.util.Objects;
-import java.util.UUID;
 
 /**
  * Cart Item JPA entity - represents cart_item table.
  */
 @Entity
-@Table(name = "cart_item")
+@Table(
+        name = "cart_item",
+        uniqueConstraints = @UniqueConstraint(
+                columnNames = {"cart_id", "product_id"}
+        )
+)
 @Getter
 @Setter
 @ToString
@@ -25,13 +29,17 @@ import java.util.UUID;
 @SuperBuilder
 public class CartItem extends BaseModel {
 
-    @NotNull(message = "Cart ID is required")
-    @Column(name = "cart_id", nullable = false)
-    private UUID cartId;
+    @NotNull(message = "Cart is required")
+    @ManyToOne(fetch = FetchType.LAZY, optional = false)
+    @JoinColumn(name = "cart_id", nullable = false)
+    @ToString.Exclude
+    private ShoppingCart cart;
 
-    @NotNull(message = "Product ID is required")
-    @Column(name = "product_id", nullable = false)
-    private UUID productId;
+    @NotNull(message = "Product is required")
+    @ManyToOne(fetch = FetchType.LAZY, optional = false)
+    @JoinColumn(name = "product_id", nullable = false)
+    @ToString.Exclude
+    private Product product;
 
     @NotNull(message = "Quantity is required")
     @Min(value = 1, message = "Quantity must be at least 1")
@@ -39,18 +47,8 @@ public class CartItem extends BaseModel {
     @Builder.Default
     private Integer quantity = 1;
 
-    @ManyToOne(fetch = FetchType.LAZY)
-    @JoinColumn(name = "cart_id", referencedColumnName = "id", insertable = false, updatable = false)
-    @ToString.Exclude
-    private ShoppingCart cart;
-
-    @ManyToOne(fetch = FetchType.LAZY)
-    @JoinColumn(name = "product_id", referencedColumnName = "id", insertable = false, updatable = false)
-    @ToString.Exclude
-    private Product product;
-
     /**
-     * Helper to compute subtotal given a unit price; product lookup happens in service
+     * Helper to compute subtotal given a unit price.
      */
     public BigDecimal subtotal(BigDecimal unitPrice) {
         if (unitPrice == null) return BigDecimal.ZERO;
@@ -61,8 +59,12 @@ public class CartItem extends BaseModel {
     public final boolean equals(Object o) {
         if (this == o) return true;
         if (o == null) return false;
-        Class<?> oEffectiveClass = o instanceof HibernateProxy ? ((HibernateProxy) o).getHibernateLazyInitializer().getPersistentClass() : o.getClass();
-        Class<?> thisEffectiveClass = this instanceof HibernateProxy ? ((HibernateProxy) this).getHibernateLazyInitializer().getPersistentClass() : this.getClass();
+        Class<?> oEffectiveClass = o instanceof HibernateProxy
+                ? ((HibernateProxy) o).getHibernateLazyInitializer().getPersistentClass()
+                : o.getClass();
+        Class<?> thisEffectiveClass = this instanceof HibernateProxy
+                ? ((HibernateProxy) this).getHibernateLazyInitializer().getPersistentClass()
+                : this.getClass();
         if (thisEffectiveClass != oEffectiveClass) return false;
         CartItem that = (CartItem) o;
         return getId() != null && Objects.equals(getId(), that.getId());
@@ -70,6 +72,8 @@ public class CartItem extends BaseModel {
 
     @Override
     public final int hashCode() {
-        return this instanceof HibernateProxy ? ((HibernateProxy) this).getHibernateLazyInitializer().getPersistentClass().hashCode() : getClass().hashCode();
+        return this instanceof HibernateProxy
+                ? ((HibernateProxy) this).getHibernateLazyInitializer().getPersistentClass().hashCode()
+                : getClass().hashCode();
     }
 }

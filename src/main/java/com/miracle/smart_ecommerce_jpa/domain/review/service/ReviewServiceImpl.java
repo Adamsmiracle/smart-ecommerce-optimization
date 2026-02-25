@@ -6,8 +6,10 @@ import com.miracle.smart_ecommerce_jpa.domain.review.dto.CreateReviewRequest;
 import com.miracle.smart_ecommerce_jpa.domain.review.dto.ReviewResponse;
 import com.miracle.smart_ecommerce_jpa.exception.DuplicateResourceException;
 import com.miracle.smart_ecommerce_jpa.exception.ResourceNotFoundException;
+import com.miracle.smart_ecommerce_jpa.domain.product.entity.Product;
 import com.miracle.smart_ecommerce_jpa.domain.product.repository.ProductRepository;
 import com.miracle.smart_ecommerce_jpa.domain.review.repository.ReviewRepository;
+import com.miracle.smart_ecommerce_jpa.domain.user.entity.User;
 import com.miracle.smart_ecommerce_jpa.domain.user.repository.UserRepository;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -71,15 +73,15 @@ public class ReviewServiceImpl implements ReviewService {
             throw ResourceNotFoundException.forResource("User", request.getUserId());
         }
 
-        if (reviewRepository.existsByUserIdAndProductId(request.getUserId(), request.getProductId())) {
+        if (reviewRepository.existsByUser_IdAndProduct_Id(request.getUserId(), request.getProductId())) {
             throw new DuplicateResourceException("Review", "user-product",
                     request.getUserId() + "-" + request.getProductId());
         }
 
         try {
             ProductReview review = ProductReview.builder()
-                    .productId(request.getProductId())
-                    .userId(request.getUserId())
+                    .product(Product.builder().id(request.getProductId()).build())
+                    .user(User.builder().id(request.getUserId()).build())
                     .rating(request.getRating())
                     .comment(request.getComment())
                     .build();
@@ -124,7 +126,7 @@ public class ReviewServiceImpl implements ReviewService {
             throw ResourceNotFoundException.forResource("Product", productId);
         }
 
-        Page<ProductReview> reviewPage = reviewRepository.findByProductId(productId, pageable);
+        Page<ProductReview> reviewPage = reviewRepository.findByProduct_Id(productId, pageable);
         List<ReviewResponse> responses = reviewPage.getContent().stream()
                 .map(this::mapToResponse)
                 .toList();
@@ -145,7 +147,7 @@ public class ReviewServiceImpl implements ReviewService {
             throw ResourceNotFoundException.forResource("User", userId);
         }
 
-        Page<ProductReview> reviewPage = reviewRepository.findByUserId(userId, pageable);
+        Page<ProductReview> reviewPage = reviewRepository.findByUser_Id(userId, pageable);
         List<ReviewResponse> responses = reviewPage.getContent().stream()
                 .map(this::mapToResponse)
                 .toList();
@@ -229,7 +231,7 @@ public class ReviewServiceImpl implements ReviewService {
     @Override
     @Transactional(readOnly = true)
     public boolean hasUserReviewedProduct(UUID userId, UUID productId) {
-        return reviewRepository.existsByUserIdAndProductId(userId, productId);
+        return reviewRepository.existsByUser_IdAndProduct_Id(userId, productId);
     }
 
     /**
@@ -238,7 +240,7 @@ public class ReviewServiceImpl implements ReviewService {
     @Override
     @Transactional(readOnly = true)
     public long countReviewsByProductId(UUID productId) {
-        return reviewRepository.countByProductId(productId);
+        return reviewRepository.countByProduct_Id(productId);
     }
 
     // ========================================================================
@@ -248,8 +250,8 @@ public class ReviewServiceImpl implements ReviewService {
     private ReviewResponse mapToResponse(ProductReview review) {
         return ReviewResponse.builder()
                 .id(review.getId())
-                .productId(review.getProductId())
-                .userId(review.getUserId())
+                .productId(review.getProduct() != null ? review.getProduct().getId() : null)
+                .userId(review.getUser() != null ? review.getUser().getId() : null)
                 .rating(review.getRating())
                 .comment(review.getComment())
                 .createdAt(review.getCreatedAt())

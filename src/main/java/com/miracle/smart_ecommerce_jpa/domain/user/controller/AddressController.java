@@ -1,6 +1,8 @@
 package com.miracle.smart_ecommerce_jpa.domain.user.controller;
 
+import com.miracle.smart_ecommerce_jpa.annotation.RequireRoles;
 import com.miracle.smart_ecommerce_jpa.common.response.ApiResponse;
+import com.miracle.smart_ecommerce_jpa.common.response.PageResponse;
 import com.miracle.smart_ecommerce_jpa.domain.user.dto.request.CreateAddressRequest;
 import com.miracle.smart_ecommerce_jpa.domain.user.dto.response.AddressResponse;
 import com.miracle.smart_ecommerce_jpa.domain.user.service.AddressService;
@@ -10,11 +12,13 @@ import io.swagger.v3.oas.annotations.responses.ApiResponses;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
+import org.springframework.data.domain.PageRequest;
+import org.springframework.data.domain.Pageable;
+import org.springframework.data.web.PageableDefault;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
-import java.util.List;
 import java.util.UUID;
 
 /**
@@ -24,6 +28,7 @@ import java.util.UUID;
 @RequestMapping("/api/addresses")
 @Tag(name = "Addresses", description = "Address management APIs")
 @RequiredArgsConstructor
+@RequireRoles({"ADMIN", "CUSTOMER"})
 public class AddressController {
 
     private final AddressService addressService;
@@ -51,33 +56,45 @@ public class AddressController {
     }
 
     @GetMapping
-    @Operation(summary = "Get all addresses", description = "Retrieves all addresses in the system (Admin)")
-    public ResponseEntity<ApiResponse<List<AddressResponse>>> getAllAddresses() {
-        List<AddressResponse> addresses = addressService.getAllAddresses();
+    @Operation(summary = "Get all addresses", description = "Retrieves all addresses in the system (Admin) - paginated")
+    public ResponseEntity<ApiResponse<PageResponse<AddressResponse>>> getAllAddresses(
+            @RequestParam(defaultValue = "0") int page,
+            @RequestParam(defaultValue = "10") int size) {
+        Pageable pageable = PageRequest.of(page, size);
+        PageResponse<AddressResponse> addresses = addressService.getAllAddresses(pageable);
         return ResponseEntity.ok(ApiResponse.success(addresses));
     }
 
     @GetMapping("/user/{userId}")
-    @Operation(summary = "Get user addresses", description = "Retrieves all addresses for a specific user")
-    public ResponseEntity<ApiResponse<List<AddressResponse>>> getAddressesByUserId(
-            @Parameter(description = "User ID") @PathVariable UUID userId) {
-        List<AddressResponse> addresses = addressService.getAddressesByUserId(userId);
+    @Operation(summary = "Get user addresses", description = "Retrieves all addresses for a specific user - paginated")
+    public ResponseEntity<ApiResponse<PageResponse<AddressResponse>>> getAddressesByUserId(
+            @Parameter(description = "User ID") @PathVariable UUID userId,
+            @RequestParam(defaultValue = "0") int page,
+            @RequestParam(defaultValue = "10") int size) {
+        Pageable pageable = PageRequest.of(page, size);
+        PageResponse<AddressResponse> addresses = addressService.getAddressesByUserId(userId, pageable);
         return ResponseEntity.ok(ApiResponse.success(addresses));
     }
 
     @GetMapping("/user/{userId}/shipping")
-    @Operation(summary = "Get user shipping addresses", description = "Retrieves all shipping addresses for a user")
-    public ResponseEntity<ApiResponse<List<AddressResponse>>> getShippingAddresses(
-            @Parameter(description = "User ID") @PathVariable UUID userId) {
-        List<AddressResponse> addresses = addressService.getAddressesByUserIdAndType(userId, "shipping");
+    @Operation(summary = "Get user shipping addresses", description = "Retrieves all shipping addresses for a user - paginated")
+    public ResponseEntity<ApiResponse<PageResponse<AddressResponse>>> getShippingAddresses(
+            @Parameter(description = "User ID") @PathVariable UUID userId,
+            @RequestParam(defaultValue = "0") int page,
+            @RequestParam(defaultValue = "10") int size) {
+        Pageable pageable = PageRequest.of(page, size);
+        PageResponse<AddressResponse> addresses = addressService.getAddressesByUserIdAndType(userId, "shipping", pageable);
         return ResponseEntity.ok(ApiResponse.success(addresses));
     }
 
     @GetMapping("/user/{userId}/billing")
-    @Operation(summary = "Get user billing addresses", description = "Retrieves all billing addresses for a user")
-    public ResponseEntity<ApiResponse<List<AddressResponse>>> getBillingAddresses(
-            @Parameter(description = "User ID") @PathVariable UUID userId) {
-        List<AddressResponse> addresses = addressService.getAddressesByUserIdAndType(userId, "billing");
+    @Operation(summary = "Get user billing addresses", description = "Retrieves all billing addresses for a user - paginated")
+    public ResponseEntity<ApiResponse<PageResponse<AddressResponse>>> getBillingAddresses(
+            @Parameter(description = "User ID") @PathVariable UUID userId,
+            @RequestParam(defaultValue = "0") int page,
+            @RequestParam(defaultValue = "10") int size) {
+        Pageable pageable = PageRequest.of(page, size);
+        PageResponse<AddressResponse> addresses = addressService.getAddressesByUserIdAndType(userId, "billing", pageable);
         return ResponseEntity.ok(ApiResponse.success(addresses));
     }
 

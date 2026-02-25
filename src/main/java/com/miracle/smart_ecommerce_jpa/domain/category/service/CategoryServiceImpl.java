@@ -1,13 +1,14 @@
 package com.miracle.smart_ecommerce_jpa.domain.category.service;
 
-import com.miracle.smart_ecommerce_jpa.domain.category.entity.Category;
+import com.miracle.smart_ecommerce_jpa.common.response.PageResponse;
 import com.miracle.smart_ecommerce_jpa.domain.category.dto.CreateCategoryRequest;
 import com.miracle.smart_ecommerce_jpa.domain.category.dto.CategoryResponse;
+import com.miracle.smart_ecommerce_jpa.domain.category.entity.Category;
+import com.miracle.smart_ecommerce_jpa.domain.category.repository.CategoryRepository;
+import com.miracle.smart_ecommerce_jpa.domain.product.repository.ProductRepository;
 import com.miracle.smart_ecommerce_jpa.exception.BadRequestException;
 import com.miracle.smart_ecommerce_jpa.exception.DuplicateResourceException;
 import com.miracle.smart_ecommerce_jpa.exception.ResourceNotFoundException;
-import com.miracle.smart_ecommerce_jpa.domain.category.repository.CategoryRepository;
-import com.miracle.smart_ecommerce_jpa.domain.product.repository.ProductRepository;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.cache.annotation.CacheEvict;
@@ -15,6 +16,7 @@ import org.springframework.cache.annotation.CachePut;
 import org.springframework.cache.annotation.Cacheable;
 import org.springframework.cache.annotation.Caching;
 import org.springframework.dao.DataIntegrityViolationException;
+import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -104,9 +106,9 @@ public class CategoryServiceImpl implements CategoryService {
      */
     @Override
     @Transactional(readOnly = true)
-    public List<CategoryResponse> getAllCategories() {
-        log.debug("Getting all categories");
-        return categoryRepository.findAllWithProductCount().stream()
+    public PageResponse<CategoryResponse> getAllCategories(Pageable pageable) {
+        log.debug("Getting all categories - pageable: {}", pageable);
+        List<CategoryResponse> all = categoryRepository.findAllWithProductCount().stream()
                 .map(row -> {
                     Category category = (Category) row[0];
                     long productCount = (Long) row[1];
@@ -117,6 +119,13 @@ public class CategoryServiceImpl implements CategoryService {
                             .build();
                 })
                 .toList();
+
+        int pageNumber = pageable.getPageNumber();
+        int pageSize = pageable.getPageSize();
+        int fromIndex = Math.min(pageNumber * pageSize, all.size());
+        int toIndex = Math.min(fromIndex + pageSize, all.size());
+        List<CategoryResponse> content = all.subList(fromIndex, toIndex);
+        return PageResponse.of(content, pageNumber, pageSize, all.size());
     }
 
     /**
@@ -159,7 +168,7 @@ public class CategoryServiceImpl implements CategoryService {
             throw ResourceNotFoundException.forResource("Category", id);
         }
 
-        if (productRepository.countByCategoryId(id) > 0) {
+        if (productRepository.countByCategory_Id(id) > 0) {
             throw new BadRequestException("Cannot delete category with associated products");
         }
 
@@ -180,7 +189,7 @@ public class CategoryServiceImpl implements CategoryService {
         return CategoryResponse.builder()
                 .id(category.getId())
                 .categoryName(category.getCategoryName())
-                .productCount(productRepository.countByCategoryId(category.getId()))
+                .productCount(productRepository.countByCategory_Id(category.getId()))
                 .build();
     }
 }

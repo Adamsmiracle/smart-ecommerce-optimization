@@ -5,10 +5,8 @@ import jakarta.persistence.*;
 import jakarta.validation.constraints.*;
 import lombok.*;
 import lombok.experimental.SuperBuilder;
-import org.hibernate.proxy.HibernateProxy;
 
 import java.math.BigDecimal;
-import java.util.Objects;
 
 /**
  * Shipping Method JPA entity - represents shipping_method table.
@@ -49,31 +47,9 @@ public class ShippingMethod extends BaseModel {
      * Get formatted estimated delivery
      */
     public String getEstimatedDelivery() {
-        if (estimatedDays == null) {
-            return "Contact for estimate";
-        }
-        if (estimatedDays == 0) {
-            return "Same day delivery";
-        }
-        if (estimatedDays == 1) {
-            return "Next day delivery";
-        }
+        if (estimatedDays == null) return "Contact for estimate";
+        if (estimatedDays == 0) return "Same day delivery";
+        if (estimatedDays == 1) return "Next day delivery";
         return estimatedDays + " business days";
-    }
-
-    @Override
-    public final boolean equals(Object o) {
-        if (this == o) return true;
-        if (o == null) return false;
-        Class<?> oEffectiveClass = o instanceof HibernateProxy ? ((HibernateProxy) o).getHibernateLazyInitializer().getPersistentClass() : o.getClass();
-        Class<?> thisEffectiveClass = this instanceof HibernateProxy ? ((HibernateProxy) this).getHibernateLazyInitializer().getPersistentClass() : this.getClass();
-        if (thisEffectiveClass != oEffectiveClass) return false;
-        ShippingMethod that = (ShippingMethod) o;
-        return getId() != null && Objects.equals(getId(), that.getId());
-    }
-
-    @Override
-    public final int hashCode() {
-        return this instanceof HibernateProxy ? ((HibernateProxy) this).getHibernateLazyInitializer().getPersistentClass().hashCode() : getClass().hashCode();
     }
 }

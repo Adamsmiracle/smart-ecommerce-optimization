@@ -1,13 +1,19 @@
+# ===================================================================
+# Smart E-Commerce JPA Application Configuration
+# ===================================================================
+
+# Spring Boot Configuration
 spring:
   application:
-    name: smart-ecommerce-api-v1
+    name: smart-ecommerce-jpa
   profiles:
-    active: dev
-
+    active: dev  # Use -Dspring.profiles.active=dev/test/prod
+  
+  # Database Configuration
   datasource:
-    url: ${DB_URL}
-    username: ${POSTGRES_USER}
-    password: ${POSTGRES_PASSWORD}
+    url: ${DB_URL:jdbc:postgresql://localhost:5432/ecommerce_db_jpa}
+    username: ${POSTGRES_USER:my_user}
+    password: ${POSTGRES_PASSWORD:secret}
     driver-class-name: ${DATABASE_DRIVER:org.postgresql.Driver}
     hikari:
       pool-name: SmartEcommerceHikariPool
@@ -18,79 +24,93 @@ spring:
       max-lifetime: 1200000
       leak-detection-threshold: 60000
       validation-timeout: 5000
-      connection-test-query: SELECT 1
-
-
+    
+  # JPA/Hibernate Configuration
   jpa:
     hibernate:
       ddl-auto: validate
-    show-sql: true
+      show-sql: true
     properties:
       hibernate:
-        format-sql: true
-
-
-
-
+        dialect: org.hibernate.dialect.PostgreSQLDialect
+        format_sql: true
+        
+  # Flyway Database Migration
   flyway:
     enabled: true
     baseline-on-migrate: true
-    baseline-version: 1
     locations: classpath:db/migration
-
-
-  sql:
-    init:
-      mode: never
-
-  graphql:
-    graphiql:
-      enabled: true
-
-    schema:
-      locations: classpath:graphql/
-      file-extensions: .graphqls,.graphql
-      printer:
-        enabled: true
-    cors:
-      allowed-origins: "*"
-      allowed-methods: "*"
-    http:
-      path: /graphql
-
-  # Cache configuration
+    validate-on-migrate: true
+    
+  # Caching Configuration
   cache:
-    type: simple
+    type: caffeine
+    caffeine:
+      spec: maximum-size=5000,expire-after-write=30m
+    cache-names: users,products,categories,orders,addresses,cart,reviews,payment_methods,shipping_method
+    
+  # Server Configuration
+  server:
+    port: 8080
 
+# Management/Actuator Configuration
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health,info,metrics,caches
+  endpoint:
+    health:
+      show-details: always
+    info:
+      env:
+        enabled: true
+  simple:
+    metrics:
+      export:
+        enabled: true
 
-server:
-  port:
-  servlet:
-    context-path: /
-  forward-headers-strategy: framework
-  address: 0.0.0.0
-
+# Logging Configuration
 logging:
   level:
-    root: INFO
-    com.smart_ecommerce_api_v1: DEBUG
-    org.hibernate.tool.schema: ERROR
-  pattern:
-console: "%d{HH:mm:ss.SSS} [%thread] %-5level %logger{36}\t-\t%msg%n"
+    com.miracle.smart_ecommerce_jpa: DEBUG
+    org.springframework.cache: DEBUG
+    org.hibernate.SQL: DEBUG
+    org.hibernate.type.descriptor.sql.BasicBinder: TRACE
 
-springdoc:
-  api-docs:
-    enabled: true
-    path: /v3/api-docs
-    version: OPENAPI_3_0
-  swagger-ui:
-    enabled: true
-    path: /swagger-ui.html
-    try-it-out-enabled: true
-    operations-sorter: method
-    tags-sorter: alpha
+# ===================================================================
+# Profile-Specific Configurations
+# ===================================================================
 
-jwt:
-  secret: bXlTZWNyZXRLZXlGb3JKd3RUb2tlbkdlbmVyYXRpb25UaGF0SXNMb25nRW5vdWdoRm9ySFM1MTJBbGdvcml0aG0xMjM0NQ==
-  expiration: 86400000
-  refresh-expiration: 604800000
+# Development Profile (with data seeding)
+---
+spring:
+  config:
+    activate:
+      on-profile: dev
+  logging:
+    level:
+      root: INFO
+
+# Test Profile (verification only)
+---
+spring:
+  config:
+    activate:
+      on-profile: test
+  logging:
+    level:
+      root: WARN
+
+# Production Profile (no seeding)
+---
+spring:
+  config:
+    activate:
+      on-profile: prod
+  jpa:
+    show-sql: false
+  logging:
+    level:
+      root: ERROR
+      com.miracle.smart_ecommerce_jpa: INFO

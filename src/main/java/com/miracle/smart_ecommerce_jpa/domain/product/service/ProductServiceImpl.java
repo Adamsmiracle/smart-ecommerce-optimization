@@ -1,10 +1,12 @@
 package com.miracle.smart_ecommerce_jpa.domain.product.service;
 
+import com.miracle.smart_ecommerce_jpa.annotation.CustomTransactional;
 import com.miracle.smart_ecommerce_jpa.common.response.PageResponse;
 import com.miracle.smart_ecommerce_jpa.domain.product.entity.Product;
 import com.miracle.smart_ecommerce_jpa.domain.product.dto.CreateProductRequest;
 import com.miracle.smart_ecommerce_jpa.domain.product.dto.ProductResponse;
 import com.miracle.smart_ecommerce_jpa.domain.product.dto.UpdateProductRequest;
+import com.miracle.smart_ecommerce_jpa.domain.category.entity.Category;
 import com.miracle.smart_ecommerce_jpa.domain.category.repository.CategoryRepository;
 import com.miracle.smart_ecommerce_jpa.domain.product.repository.ProductRepository;
 import com.miracle.smart_ecommerce_jpa.exception.ResourceNotFoundException;
@@ -60,7 +62,7 @@ public class ProductServiceImpl implements ProductService {
      * All list caches evicted to reflect new product in listings.
      */
     @Override
-    @Transactional
+    @CustomTransactional
     @Caching(
             put = { @CachePut(value = PRODUCTS_CACHE, key = "'id:' + #result.id") },
             evict = { @CacheEvict(value = PRODUCTS_CACHE, allEntries = true) }
@@ -74,7 +76,7 @@ public class ProductServiceImpl implements ProductService {
 
         try {
             Product product = Product.builder()
-                    .categoryId(request.getCategoryId())
+                    .category(Category.builder().id(request.getCategoryId()).build())
                     .name(request.getName())
                     .description(request.getDescription())
                     .price(request.getPrice())
@@ -98,7 +100,7 @@ public class ProductServiceImpl implements ProductService {
      * Result cached by ID to avoid repeated DB lookups.
      */
     @Override
-    @Transactional(readOnly = true)
+    @CustomTransactional(readOnly = true)
     @Cacheable(value = PRODUCTS_CACHE, key = "'id:' + #id")
     public ProductResponse getProductById(UUID id) {
         log.debug("Getting product by ID: {}", id);
@@ -111,7 +113,7 @@ public class ProductServiceImpl implements ProductService {
      * Get all products with pagination and sorting.
      */
     @Override
-    @Transactional(readOnly = true)
+    @CustomTransactional(readOnly = true)
     public PageResponse<ProductResponse> getAllProducts(Pageable pageable) {
         log.debug("Getting all products - pageable: {}", pageable);
 
@@ -127,7 +129,7 @@ public class ProductServiceImpl implements ProductService {
      * Get active products with pagination.
      */
     @Override
-    @Transactional(readOnly = true)
+    @CustomTransactional(readOnly = true)
     public PageResponse<ProductResponse> getActiveProducts(Pageable pageable) {
         log.debug("Getting active products - pageable: {}", pageable);
 
@@ -144,7 +146,7 @@ public class ProductServiceImpl implements ProductService {
      * Validates category existence before querying.
      */
     @Override
-    @Transactional(readOnly = true)
+    @CustomTransactional(readOnly = true)
     public PageResponse<ProductResponse> getProductsByCategory(UUID categoryId, Pageable pageable) {
         log.debug("Getting products by category: {}", categoryId);
 
@@ -164,7 +166,7 @@ public class ProductServiceImpl implements ProductService {
      * Search products by keyword across name and description with pagination.
      */
     @Override
-    @Transactional(readOnly = true)
+    @CustomTransactional(readOnly = true)
     public PageResponse<ProductResponse> searchProducts(String keyword, Pageable pageable) {
         log.debug("Searching products with keyword: {}", keyword);
 
@@ -185,7 +187,7 @@ public class ProductServiceImpl implements ProductService {
      * Validates that minPrice is not greater than maxPrice.
      */
     @Override
-    @Transactional(readOnly = true)
+    @CustomTransactional(readOnly = true)
     public PageResponse<ProductResponse> getProductsByPriceRange(BigDecimal minPrice, BigDecimal maxPrice, Pageable pageable) {
         log.debug("Getting products by price range: {} - {}", minPrice, maxPrice);
 
@@ -208,7 +210,7 @@ public class ProductServiceImpl implements ProductService {
      * Get products in stock with pagination.
      */
     @Override
-    @Transactional(readOnly = true)
+    @CustomTransactional(readOnly = true)
     public PageResponse<ProductResponse> getProductsInStock(Pageable pageable) {
         log.debug("Getting products in stock");
 
@@ -227,7 +229,7 @@ public class ProductServiceImpl implements ProductService {
      * Cache evicted after update to prevent stale data.
      */
     @Override
-    @Transactional
+    @CustomTransactional
     @CacheEvict(value = PRODUCTS_CACHE, allEntries = true)
     public ProductResponse updateProduct(UUID id, UpdateProductRequest request) {
         log.info("Updating product with ID: {}", id);
@@ -239,7 +241,7 @@ public class ProductServiceImpl implements ProductService {
             if (!categoryRepository.existsById(request.getCategoryId())) {
                 throw ResourceNotFoundException.forResource("Category", request.getCategoryId());
             }
-            product.setCategoryId(request.getCategoryId());
+            product.setCategory(Category.builder().id(request.getCategoryId()).build());
         }
 
         if (request.getName() != null) product.setName(request.getName());
@@ -258,7 +260,7 @@ public class ProductServiceImpl implements ProductService {
      * Cache evicted after deletion.
      */
     @Override
-    @Transactional
+    @CustomTransactional
     @CacheEvict(value = PRODUCTS_CACHE, allEntries = true)
     public void deleteProduct(UUID id) {
         log.info("Deleting product with ID: {}", id);
@@ -281,7 +283,7 @@ public class ProductServiceImpl implements ProductService {
      * Uses existsById to avoid loading the full entity unnecessarily.
      */
     @Override
-    @Transactional
+    @CustomTransactional
     @CacheEvict(value = PRODUCTS_CACHE, allEntries = true)
     public void activateProduct(UUID id) {
         log.info("Activating product with ID: {}", id);
@@ -297,7 +299,7 @@ public class ProductServiceImpl implements ProductService {
      * Uses existsById to avoid loading the full entity unnecessarily.
      */
     @Override
-    @Transactional
+    @CustomTransactional
     @CacheEvict(value = PRODUCTS_CACHE, allEntries = true)
     public void deactivateProduct(UUID id) {
         log.info("Deactivating product with ID: {}", id);
@@ -313,7 +315,7 @@ public class ProductServiceImpl implements ProductService {
      * Validates that quantity is not negative.
      */
     @Override
-    @Transactional
+    @CustomTransactional
     @CacheEvict(value = PRODUCTS_CACHE, allEntries = true)
     public void updateStock(UUID id, int quantity) {
         log.info("Updating stock for product: {} to quantity: {}", id, quantity);
@@ -333,7 +335,7 @@ public class ProductServiceImpl implements ProductService {
      * Count total products.
      */
     @Override
-    @Transactional(readOnly = true)
+    @CustomTransactional(readOnly = true)
     public long countProducts() {
         return productRepository.count();
     }
@@ -345,7 +347,7 @@ public class ProductServiceImpl implements ProductService {
     private ProductResponse mapToResponse(Product product) {
         return ProductResponse.builder()
                 .id(product.getId())
-                .categoryId(product.getCategoryId())
+                .categoryId(product.getCategory() != null ? product.getCategory().getId() : null)
                 .name(product.getName())
                 .description(product.getDescription())
                 .price(product.getPrice())

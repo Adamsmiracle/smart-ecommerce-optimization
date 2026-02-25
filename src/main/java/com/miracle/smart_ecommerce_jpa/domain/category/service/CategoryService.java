@@ -1,9 +1,10 @@
 package com.miracle.smart_ecommerce_jpa.domain.category.service;
 
+import com.miracle.smart_ecommerce_jpa.common.response.PageResponse;
 import com.miracle.smart_ecommerce_jpa.domain.category.dto.CreateCategoryRequest;
 import com.miracle.smart_ecommerce_jpa.domain.category.dto.CategoryResponse;
+import org.springframework.data.domain.Pageable;
 
-import java.util.List;
 import java.util.UUID;
 
 /**
@@ -22,9 +23,9 @@ public interface CategoryService {
     CategoryResponse getCategoryById(UUID id);
 
     /**
-     * Get all categories
+     * Get all categories (paginated)
      */
-    List<CategoryResponse> getAllCategories();
+    PageResponse<CategoryResponse> getAllCategories(Pageable pageable);
 
 
     /**

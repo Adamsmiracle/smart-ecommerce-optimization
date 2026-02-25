@@ -1,15 +1,17 @@
 package com.miracle.smart_ecommerce_jpa.graphql.resolver;
 
+import com.miracle.smart_ecommerce_jpa.annotation.RequireRoles;
+import com.miracle.smart_ecommerce_jpa.common.response.PageResponse;
 import com.miracle.smart_ecommerce_jpa.domain.user.dto.request.CreateAddressRequest;
 import com.miracle.smart_ecommerce_jpa.domain.user.dto.response.AddressResponse;
 import com.miracle.smart_ecommerce_jpa.domain.user.service.AddressService;
 import lombok.RequiredArgsConstructor;
+import org.springframework.data.domain.PageRequest;
 import org.springframework.graphql.data.method.annotation.Argument;
 import org.springframework.graphql.data.method.annotation.MutationMapping;
 import org.springframework.graphql.data.method.annotation.QueryMapping;
 import org.springframework.stereotype.Controller;
 
-import java.util.List;
 import java.util.Map;
 import java.util.UUID;
 
@@ -19,6 +21,7 @@ import java.util.UUID;
  */
 @Controller
 @RequiredArgsConstructor
+@RequireRoles({"ADMIN", "CUSTOMER"})
 public class AddressResolver {
 
     private final AddressService addressService;
@@ -28,23 +31,33 @@ public class AddressResolver {
     // ========================================================================
 
     @QueryMapping
+    @RequireRoles({"ADMIN", "CUSTOMER"})
     public AddressResponse address(@Argument UUID id) {
         return addressService.getAddressById(id);
     }
 
     @QueryMapping
-    public List<AddressResponse> addressesByUser(@Argument UUID userId) {
-        return addressService.getAddressesByUserId(userId);
+    @RequireRoles({"ADMIN", "CUSTOMER"})
+    public PageResponse<AddressResponse> addressesByUser(@Argument UUID userId, @Argument Integer page, @Argument Integer size) {
+        int p = (page == null) ? 0 : page;
+        int s = (size == null) ? 10 : size;
+        return addressService.getAddressesByUserId(userId, PageRequest.of(p, s));
     }
 
     @QueryMapping
-    public List<AddressResponse> shippingAddresses(@Argument UUID userId) {
-        return addressService.getAddressesByUserIdAndType(userId, "shipping");
+    @RequireRoles({"ADMIN", "CUSTOMER"})
+    public PageResponse<AddressResponse> shippingAddresses(@Argument UUID userId, @Argument Integer page, @Argument Integer size) {
+        int p = (page == null) ? 0 : page;
+        int s = (size == null) ? 10 : size;
+        return addressService.getAddressesByUserIdAndType(userId, "shipping", PageRequest.of(p, s));
     }
 
     @QueryMapping
-    public List<AddressResponse> billingAddresses(@Argument UUID userId) {
-        return addressService.getAddressesByUserIdAndType(userId, "billing");
+    @RequireRoles({"ADMIN", "CUSTOMER"})
+    public PageResponse<AddressResponse> billingAddresses(@Argument UUID userId, @Argument Integer page, @Argument Integer size) {
+        int p = (page == null) ? 0 : page;
+        int s = (size == null) ? 10 : size;
+        return addressService.getAddressesByUserIdAndType(userId, "billing", PageRequest.of(p, s));
     }
 
     // ========================================================================
@@ -52,6 +65,7 @@ public class AddressResolver {
     // ========================================================================
 
     @MutationMapping
+    @RequireRoles({"ADMIN", "CUSTOMER"})
     public AddressResponse createAddress(@Argument Map<String, Object> input) {
         CreateAddressRequest request = CreateAddressRequest.builder()
                 .userId(UUID.fromString((String) input.get("userId")))
@@ -67,6 +81,7 @@ public class AddressResolver {
     }
 
     @MutationMapping
+    @RequireRoles({"ADMIN", "CUSTOMER"})
     public AddressResponse updateAddress(@Argument UUID id, @Argument Map<String, Object> input) {
         CreateAddressRequest request = CreateAddressRequest.builder()
                 .userId(UUID.fromString((String) input.get("userId")))
@@ -82,6 +97,7 @@ public class AddressResolver {
     }
 
     @MutationMapping
+    @RequireRoles({"ADMIN", "CUSTOMER"})
     public boolean deleteAddress(@Argument UUID id) {
         addressService.deleteAddress(id);
         return true;

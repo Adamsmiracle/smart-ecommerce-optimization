@@ -2,6 +2,7 @@ package com.miracle.smart_ecommerce_jpa.domain.user.mapper;
 
 import com.miracle.smart_ecommerce_jpa.common.util.Utils;
 import com.miracle.smart_ecommerce_jpa.domain.user.entity.Address;
+import com.miracle.smart_ecommerce_jpa.domain.user.entity.User;
 import org.springframework.jdbc.core.RowMapper;
 import org.springframework.stereotype.Component;
 
@@ -19,7 +20,7 @@ public class AddressMapper implements RowMapper<Address> {
     public Address mapRow(ResultSet rs, int rowNum) throws SQLException {
         return Address.builder()
                 .id(Utils.getUUID(rs, "id"))
-                .userId(Utils.getUUID(rs, "user_id"))
+                .user(User.builder().id(Utils.getUUID(rs, "user_id")).build())
                 .addressLine(rs.getString("address_line"))
                 .city(rs.getString("city"))
                 .region(rs.getString("region"))

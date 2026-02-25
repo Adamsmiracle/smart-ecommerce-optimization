@@ -1,6 +1,9 @@
 package com.miracle.smart_ecommerce_jpa.domain.user.repository;
 
 import com.miracle.smart_ecommerce_jpa.domain.user.entity.Address;
+import com.miracle.smart_ecommerce_jpa.domain.user.entity.User;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Modifying;
 import org.springframework.data.jpa.repository.Query;
@@ -12,7 +15,7 @@ import java.util.Optional;
 import java.util.UUID;
 
 /**
- * JPA Repository interface for Address operations.
+ * JPA Repository interface for Address operations using User entity reference.
  */
 @Repository
 public interface AddressRepository extends JpaRepository<Address, UUID> {
@@ -20,24 +23,31 @@ public interface AddressRepository extends JpaRepository<Address, UUID> {
     /**
      * Find all addresses for a user
      */
-    List<Address> findByUserId(UUID userId);
+    List<Address> findByUser(User user);
 
     /**
-     * Find addresses by user ID and type
+     * Find addresses by user and type
      */
-    List<Address> findByUserIdAndAddressType(UUID userId, String addressType);
+    List<Address> findByUserAndAddressType(User user, String addressType);
+
+    /**
+     * Pageable variants for controller/service pagination
+     */
+    Page<Address> findByUser(User user, Pageable pageable);
+
+    Page<Address> findByUserAndAddressType(User user, String addressType, Pageable pageable);
 
     /**
      * Find the default address for a user
      */
-    Optional<Address> findByUserIdAndIsDefaultTrue(UUID userId);
+    Optional<Address> findByUserAndIsDefaultTrue(User user);
 
     /**
      * Clear default flag for all addresses of a user
      */
     @Modifying
-    @Query("UPDATE Address a SET a.isDefault = false WHERE a.userId = :userId")
-    void clearDefaultByUserId(@Param("userId") UUID userId);
+    @Query("UPDATE Address a SET a.isDefault = false WHERE a.user = :user")
+    void clearDefaultByUser(@Param("user") User user);
 
     /**
      * Set an address as default
