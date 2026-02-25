@@ -38,6 +38,14 @@ public class AddressResolver {
 
     @QueryMapping
     @RequireRoles({"ADMIN", "CUSTOMER"})
+    public PageResponse<AddressResponse> addresses(@Argument Integer page, @Argument Integer size) {
+        int p = (page == null) ? 0 : page;
+        int s = (size == null) ? 10 : size;
+        return addressService.getAllAddresses(PageRequest.of(p, s));
+    }
+
+    @QueryMapping
+    @RequireRoles({"ADMIN", "CUSTOMER"})
     public PageResponse<AddressResponse> addressesByUser(@Argument UUID userId, @Argument Integer page, @Argument Integer size) {
         int p = (page == null) ? 0 : page;
         int s = (size == null) ? 10 : size;
