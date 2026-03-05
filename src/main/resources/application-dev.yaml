@@ -4,10 +4,10 @@
 
 spring:
   application:
-    name: smart-commerce-jpa
+    name: smart-commerce-security
 
   datasource:
-    url: "jdbc:postgresql://localhost:5432/ecommerce_db"
+    url: "jdbc:postgresql://localhost:5432/ecommerce_db_security"
     username: "my_user"
     password: "secret"
     driver-class-name: ${DATABASE_DRIVER:org.postgresql.Driver}

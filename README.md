@@ -1,10 +1,12 @@
-# Smart E-Commerce JPA
+# Smart E-Commerce Security
 
-A comprehensive e-commerce application built with Spring Boot, Spring Data JPA, and PostgreSQL, featuring advanced caching, transaction management, and performance optimization.
+A comprehensive e-commerce application built with Spring Boot, Spring Data JPA, and PostgreSQL, featuring JWT authentication, Google OAuth2, role-based access control, and security best practices.
 
 ## 📋 Table of Contents
 
 - [Architecture Overview](#architecture-overview)
+- [Security Architecture](#security-architecture)
+- [CORS vs CSRF](#cors-vs-csrf)
 - [Repository Documentation](#repository-documentation)
 - [Transaction Management](#transaction-management)
 - [Caching Strategies](#caching-strategies)
@@ -17,12 +19,86 @@ A comprehensive e-commerce application built with Spring Boot, Spring Data JPA, 
 ## 🏗️ Architecture Overview
 
 ### Technology Stack
-- **Backend**: Spring Boot 3.x
+- **Backend**: Spring Boot 3.3.5
+- **Security**: Spring Security 6, JWT (JJWT), OAuth2 (Google)
 - **Database**: PostgreSQL 15+
 - **ORM**: Spring Data JPA with Hibernate
 - **Cache**: Caffeine with Spring Cache
 - **Build**: Maven
-- **Java**: JDK 17+
+- **Java**: JDK 21+
+
+---
+
+## 🔒 Security Architecture
+
+> Full details in [docs/AUTH_ARCHITECTURE.md](docs/AUTH_ARCHITECTURE.md)
+
+### Authentication Methods
+1. **JWT Bearer Token** — Stateless authentication for REST and GraphQL APIs.
+   - Login via `POST /api/auth/login` returns a signed JWT (HMAC-SHA256).
+   - Token includes claims: `sub` (userId), `role`, `iat`, `exp`, `jti`.
+   - Every protected request must include `Authorization: Bearer <token>`.
+
+2. **Google OAuth2** — Social login via `/oauth2/authorization/google`.
+   - New users are automatically provisioned with `CUSTOMER` role.
+   - A JWT is issued after successful OAuth2 authentication.
+
+3. **BCrypt Password Hashing** — Passwords stored with adaptive cost factor; never in plaintext.
+
+### Role-Based Access Control (RBAC)
+Two roles: `ADMIN`, `CUSTOMER`
+
+Enforced at two levels:
+- **URL-level:** `SecurityConfig.authorizeHttpRequests()` for coarse-grained rules.
+- **Method-level:** `@PreAuthorize("hasRole('ADMIN')")` / `@Secured` on controllers and GraphQL resolvers.
+
+### Token Revocation (DSA: HashMap O(1) Lookup)
+- `TokenBlacklistService` uses a `ConcurrentHashMap` for O(1) blacklist checks.
+- Logout adds the token's JTI to the blacklist; scheduled cleanup removes expired entries.
+
+### Security Audit
+- `SecurityEventListener` tracks auth successes, failures, and access denials with atomic counters.
+- `GET /api/admin/security-report` (ADMIN only) returns real-time statistics and recent security events.
+
+---
+
+## 🛡️ CORS vs CSRF
+
+### What is CORS?
+**Cross-Origin Resource Sharing** controls which browser-based origins (e.g., `http://localhost:3000`) can make requests to the API. It's enforced by the browser via preflight OPTIONS requests and `Access-Control-*` response headers.
+
+**Configuration:** `SecurityConfig.corsConfigurationSource()` allows specific frontend origins. Unauthorized origins (e.g., `http://evil.com`) are rejected — the browser blocks the response.
+
+**Testing:** In Postman, CORS headers are ignored (Postman is not a browser). To verify CORS rejection, use a browser with DevTools Network tab or `curl` with `Origin` header.
+
+### What is CSRF?
+**Cross-Site Request Forgery** tricks a user's browser into submitting a forged request to a site where the user is authenticated. The attack works because browsers automatically attach cookies (including session cookies).
+
+**Protection:** A unique CSRF token is embedded in forms. The server validates the token on every state-changing request (POST, PUT, DELETE). Without the correct token, the request is rejected with 403 Forbidden.
+
+### When to Enable/Disable
+
+| Scenario | CSRF | CORS | Reason |
+|----------|------|------|--------|
+| JWT API (`/api/**`) | ❌ Disabled | ✅ Enabled | Browser doesn't auto-attach `Authorization` header; no CSRF risk. CORS needed for cross-origin frontend calls. |
+| GraphQL (`/graphql`) | ❌ Disabled | ✅ Enabled | Same as above — JWT in header. |
+| HTML form (`/csrf-demo`) | ✅ Enabled | N/A (same origin) | Browser auto-submits cookies with forms; CSRF token required. |
+| Postman | N/A | N/A | Not a browser — neither CORS nor CSRF applies. |
+| JavaFX client | ❌ | ❌ | Desktop client — not subject to browser security model. |
+
+### This Project's Configuration
+
+```java
+// SecurityConfig.java
+.csrf(csrf -> csrf
+    .ignoringRequestMatchers("/api/**", "/graphql")  // Disabled for JWT APIs
+    .csrfTokenRepository(CookieCsrfTokenRepository.withHttpOnlyFalse())  // Enabled for forms
+)
+.cors(cors -> cors.configurationSource(corsConfigurationSource()))  // Allowed origins
+```
+
+### CSRF Demo
+Visit `http://localhost:8080/csrf-demo` to see CSRF protection in action with a Thymeleaf form. The page shows the CSRF token value, explains how it works, and lets you submit a form that Spring Security validates.
 
 ### Core Components
 ```

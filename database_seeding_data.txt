@@ -25,11 +25,11 @@ INSERT INTO product_category (category_name, created_at, updated_at) VALUES
 # Columns: id (UUID, auto-generated), email_address, first_name, last_name, phone_number, password_hash, is_active, role, created_at, updated_at
 
 INSERT INTO app_user (email_address, first_name, last_name, phone_number, password_hash, is_active, role, created_at, updated_at) VALUES
-('john.doe@example.com', 'John', 'Doe', '+1234567890', '$2a$10$N9qo8uLOickgx2ZMRZoJcqwXGJvWeJQjM2U1qP5uE2', true, 'CUSTOMER', NOW(), NOW()),
-('jane.smith@example.com', 'Jane', 'Smith', '+1234567891', '$2a$10$N9qo8uLOickgx2ZMRZoJcqwXGJvWeJQjM2U1qP5uE3', true, 'CUSTOMER', NOW(), NOW()),
-('admin@ecommerce.com', 'Admin', 'User', '+1234567892', '$2a$10$N9qo8uLOickgx2ZMRZoJcqwXGJvWeJQjM2U1qP5uE4', true, 'ADMIN', NOW(), NOW()),
-('sarah.johnson@example.com', 'Sarah', 'Johnson', '+1234567893', '$2a$10$N9qo8uLOickgx2ZMRZoJcqwXGJvWeJQjM2U1qP5uE5', true, 'CUSTOMER', NOW(), NOW()),
-('mike.wilson@example.com', 'Mike', 'Wilson', '+1234567894', '$2a$10$N9qo8uLOickgx2ZMRZoJcqwXGJvWeJQjM2U1qP5uE6', true, 'CUSTOMER', NOW(), NOW());
+('john.doe@example.com', 'John', 'Doe', '+1234567890', '$2a$10$dXJ3SW6G7P50lGmMQoeJhOxYfOkNh9V7HHGMuOBJ4OPBF/bBp9MBm', true, 'CUSTOMER', NOW(), NOW()),
+('jane.smith@example.com', 'Jane', 'Smith', '+1234567891', '$2a$10$dXJ3SW6G7P50lGmMQoeJhOxYfOkNh9V7HHGMuOBJ4OPBF/bBp9MBm', true, 'CUSTOMER', NOW(), NOW()),
+('admin@ecommerce.com', 'Admin', 'User', '+1234567892', '$2a$10$dXJ3SW6G7P50lGmMQoeJhOxYfOkNh9V7HHGMuOBJ4OPBF/bBp9MBm', true, 'ADMIN', NOW(), NOW()),
+('sarah.johnson@example.com', 'Sarah', 'Johnson', '+1234567893', '$2a$10$dXJ3SW6G7P50lGmMQoeJhOxYfOkNh9V7HHGMuOBJ4OPBF/bBp9MBm', true, 'CUSTOMER', NOW(), NOW()),
+('mike.wilson@example.com', 'Mike', 'Wilson', '+1234567894', '$2a$10$dXJ3SW6G7P50lGmMQoeJhOxYfOkNh9V7HHGMuOBJ4OPBF/bBp9MBm', true, 'CUSTOMER', NOW(), NOW());
 
 # ============================================================
 # 3. USER ADDRESSES

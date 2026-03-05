@@ -3,7 +3,7 @@
 # ============================================================================
 spring:
   datasource:
-    url: "jdbc:postgresql://localhost:5432/ecommerce_db"
+    url: "jdbc:postgresql://localhost:5432/ecommerce_db_security"
     username: "app_user"
     password: "secret123"
     driver-class-name: ${DATABASE_DRIVER}

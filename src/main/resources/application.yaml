@@ -5,13 +5,13 @@
 # Spring Boot Configuration
 spring:
   application:
-    name: smart-ecommerce-jpa
+    name: smart-ecommerce-security
   profiles:
     active: dev  # Use -Dspring.profiles.active=dev/test/prod
   
   # Database Configuration
   datasource:
-    url: ${DB_URL:jdbc:postgresql://localhost:5432/ecommerce_db_jpa}
+    url: ${DB_URL:jdbc:postgresql://localhost:5432/ecommerce_db_security}
     username: ${POSTGRES_USER:my_user}
     password: ${POSTGRES_PASSWORD:secret}
     driver-class-name: ${DATABASE_DRIVER:org.postgresql.Driver}
@@ -36,12 +36,40 @@ spring:
         format_sql: true
         
   # Flyway Database Migration
+  # Auto-config disabled — FlywayConfig.java bean handles migration manually
   flyway:
-    enabled: true
-    baseline-on-migrate: true
-    locations: classpath:db/migration
-    validate-on-migrate: true
-    
+    enabled: false
+
+
+  # Spring Security OAuth2 (Google)
+  security:
+    oauth2:
+      client:
+        registration:
+          google:
+            client-id: ${GOOGLE_CLIENT_ID}
+            client-secret: ${GOOGLE_CLIENT_SECRET}
+            scope: openid, profile, email
+        provider:
+          google:
+            authorization-uri: https://accounts.google.com/o/oauth2/v2/auth
+            token-uri: https://oauth2.googleapis.com/token
+            user-info-uri: https://openidconnect.googleapis.com/v1/userinfo
+            user-name-attribute: sub
+
+
+# JWT Configuration
+jwt:
+  secret: ${JWT_SECRET}
+  expiration-ms: ${JWT_EXPIRATION:86400000}
+  refresh-expiration-ms: ${JWT_REFRESH_EXPIRATION:604800000}
+
+
+# Application Configuration
+app:
+  oauth2:
+    redirect-uri: ${OAUTH2_REDIRECT_URI:}
+
   # Caching Configuration
   cache:
     type: caffeine
@@ -52,6 +80,7 @@ spring:
   # Server Configuration
   server:
     port: 8080
+
 
 # Management/Actuator Configuration
 management:
@@ -70,10 +99,17 @@ management:
       export:
         enabled: true
 
+# SpringDoc / Swagger UI Configuration
+springdoc:
+  swagger-ui:
+    enabled: true
+
 # Logging Configuration
 logging:
   level:
-    com.miracle.smart_ecommerce_jpa: DEBUG
+    com.miracle.smart_ecommerce_security: DEBUG
+    com.miracle.smart_ecommerce_security.domain.auth.filter: DEBUG
+    org.springframework.security: DEBUG
     org.springframework.cache: DEBUG
     org.hibernate.SQL: DEBUG
     org.hibernate.type.descriptor.sql.BasicBinder: TRACE
