@@ -4,8 +4,8 @@ import com.miracle.smart_ecommerce_security.domain.order.dto.CreateOrderRequest;
 import com.miracle.smart_ecommerce_security.domain.order.dto.OrderResponse;
 import com.miracle.smart_ecommerce_security.domain.order.dto.UpdateOrderRequest;
 import com.miracle.smart_ecommerce_security.domain.order.service.OrderService;
+import com.miracle.smart_ecommerce_security.graphql.type.GraphQLPage;
 import lombok.RequiredArgsConstructor;
-import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Pageable;
 import org.springframework.graphql.data.method.annotation.Argument;
@@ -44,21 +44,22 @@ public class OrderResolver {
 
     @QueryMapping
     @PreAuthorize("hasAnyRole('ADMIN', 'STAFF')")
-    public Page<OrderResponse> orders(@Argument int page, @Argument int size) {
+    public GraphQLPage<OrderResponse> orders(@Argument int page, @Argument int size) {
         Pageable pageable = PageRequest.of(page, size);
-        return orderService.getAllOrders(pageable);
+        return GraphQLPage.of(orderService.getAllOrders(pageable));
     }
 
     @QueryMapping
-    public Page<OrderResponse> ordersByUser(@Argument UUID userId, @Argument int page, @Argument int size) {
+    @PreAuthorize("principal.username == #userId || hasAnyRole('ADMIN', 'STAFF')")
+    public GraphQLPage<OrderResponse> ordersByUser(@Argument UUID userId, @Argument int page, @Argument int size) {
         Pageable pageable = PageRequest.of(page, size);
-        return orderService.getOrdersByUserId(userId, pageable);
+        return GraphQLPage.of(orderService.getOrdersByUserId(userId, pageable));
     }
 
     @QueryMapping
-    public Page<OrderResponse> ordersByStatus(@Argument String status, @Argument int page, @Argument int size) {
+    public GraphQLPage<OrderResponse> ordersByStatus(@Argument String status, @Argument int page, @Argument int size) {
         Pageable pageable = PageRequest.of(page, size);
-        return orderService.getOrdersByStatus(status, pageable);
+        return GraphQLPage.of(orderService.getOrdersByStatus(status, pageable));
     }
 
     // =====================

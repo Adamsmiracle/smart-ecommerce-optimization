@@ -195,9 +195,8 @@ public class OrderServiceImpl implements OrderService {
 
             log.info("Order created with ID: {} and number: {}", saved.getId(), saved.getOrderNumber());
 
-            // Load items for response
-            saved.setOrderItems(orderItemRepository.findByOrderId(saved.getId()));
-            return mapToResponse(saved);
+            // Use mapToResponseWithDetails — fetches items separately without touching the managed collection
+            return mapToResponseWithDetails(saved);
 
         } catch (DataIntegrityViolationException e) {
             log.error("Data integrity violation while creating order for user: {}", request.getUserId(), e);
@@ -483,7 +482,9 @@ public class OrderServiceImpl implements OrderService {
                     orderItemRepository.save(item);
                 }
 
-                order.setOrderItems(resultingItems);
+                // Update the managed collection in-place — never replace it
+                order.getOrderItems().clear();
+                order.getOrderItems().addAll(resultingItems);
 
                 // Recalculate subtotal
                 BigDecimal newSubtotal = resultingItems.stream()
@@ -613,6 +614,7 @@ public class OrderServiceImpl implements OrderService {
                 .userId(order.getUser().getId())
                 .orderNumber(order.getOrderNumber())
                 .status(order.getStatus())
+                .paymentStatus(order.getPaymentStatus())
                 .paymentMethodId(order.getPaymentMethod() != null ? order.getPaymentMethod().getId() : null)
                 .shippingMethodId(order.getShippingMethod() != null ? order.getShippingMethod().getId() : null)
                 .subtotal(order.getSubtotal())
@@ -625,18 +627,31 @@ public class OrderServiceImpl implements OrderService {
 
     /**
      * Loads order items (with products) for the response using a single JOIN FETCH query.
-     * Falls back for orders whose items are already initialised (e.g. after createOrder).
+     * Does NOT replace the managed collection — maps items directly into the response.
      */
     private OrderResponse mapToResponseWithDetails(CustomerOrder order) {
         List<OrderItem> items = orderItemRepository.findByOrderIdWithProduct(order.getId());
-        order.setOrderItems(items);
-        return mapToResponse(order);
+        return OrderResponse.builder()
+                .id(order.getId())
+                .userId(order.getUser().getId())
+                .orderNumber(order.getOrderNumber())
+                .status(order.getStatus())
+                .paymentStatus(order.getPaymentStatus())
+                .paymentMethodId(order.getPaymentMethod() != null ? order.getPaymentMethod().getId() : null)
+                .shippingMethodId(order.getShippingMethod() != null ? order.getShippingMethod().getId() : null)
+                .subtotal(order.getSubtotal())
+                .total(order.getTotal())
+                .itemCount(order.getItemCount())
+                .createdAt(order.getCreatedAt())
+                .items(mapOrderItems(items))
+                .build();
     }
 
     /**
      * Maps a page of orders to a Page of responses by batch-loading all items (with products) for the
      * entire page in a single query, then grouping them back per order.
      * This eliminates the N+1 pattern of calling findByOrderId once per order.
+     * Items are mapped directly into responses — the managed collection is never replaced.
      */
     private Page<OrderResponse> mapOrderPageWithBatchItems(Page<CustomerOrder> orderPage) {
         List<CustomerOrder> orders = orderPage.getContent();
@@ -651,8 +666,21 @@ public class OrderServiceImpl implements OrderService {
 
         List<OrderResponse> responses = orders.stream()
                 .map(order -> {
-                    order.setOrderItems(itemsByOrderId.getOrDefault(order.getId(), new ArrayList<>()));
-                    return mapToResponse(order);
+                    List<OrderItem> items = itemsByOrderId.getOrDefault(order.getId(), new ArrayList<>());
+                    return OrderResponse.builder()
+                            .id(order.getId())
+                            .userId(order.getUser().getId())
+                            .orderNumber(order.getOrderNumber())
+                            .status(order.getStatus())
+                            .paymentStatus(order.getPaymentStatus())
+                            .paymentMethodId(order.getPaymentMethod() != null ? order.getPaymentMethod().getId() : null)
+                            .shippingMethodId(order.getShippingMethod() != null ? order.getShippingMethod().getId() : null)
+                            .subtotal(order.getSubtotal())
+                            .total(order.getTotal())
+                            .itemCount(order.getItemCount())
+                            .createdAt(order.getCreatedAt())
+                            .items(mapOrderItems(items))
+                            .build();
                 })
                 .toList();
 

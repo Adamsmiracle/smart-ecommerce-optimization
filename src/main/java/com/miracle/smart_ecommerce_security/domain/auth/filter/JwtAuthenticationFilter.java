@@ -112,11 +112,10 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
             }
 
         } else {
-            // ── Invalid / expired / tampered token — reject with 401 ────────
-            // Per AC: "Tampered or expired tokens rejected with 401 Unauthorized"
             tokenActivityService.logTokenValidationFailure(token, "Invalid/expired/tampered JWT",
                     clientIp, userAgent);
 
+//            Call filterchain.doFilter
             log.warn("JWT_AUTH_FAILED — {} {} — Rejected invalid/expired token — IP: {} — CID: {}",
                     request.getMethod(), request.getRequestURI(), clientIp, MDC.get("correlationId"));
 
@@ -127,8 +126,9 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
             String body = objectMapper.writeValueAsString(Map.of(
                     "status",     false,
                     "statusCode", 401,
-                    "message",    "Authentication required: token is missing, expired, or invalid.",
-                    "path",       request.getRequestURI()
+                    "message",    "Authentication failed: token is invalid, expired, or tampered.",
+                    "path",       request.getRequestURI(),
+                    "timestamp",  java.time.Instant.now().toString()
             ));
             response.setContentLength(body.length());
             response.getWriter().write(body);
@@ -145,4 +145,3 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
         return request.getRemoteAddr();
     }
 }
-

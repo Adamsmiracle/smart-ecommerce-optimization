@@ -33,56 +33,49 @@ public class GraphiQLConfig {
 </head>
 <body>
 <div id="graphiql-toolbar">
-    <label for="auth-token">X-Auth-Token:</label>
-    <input id="auth-token" placeholder="paste token here" style="width:430px" />
-    <label for="user-id">X-User-Id:</label>
-    <input id="user-id" placeholder="optional user id (UUID)" style="width:260px" />
-    <button id="apply-headers">Apply Headers</button>
+    <label for="auth-token">Bearer Token:</label>
+    <input id="auth-token" placeholder="paste JWT token here" style="width:500px" />
+    <button id="apply-headers">Apply Token</button>
 </div>
 <div id="graphiql">Loading...</div>
 <script src="https://unpkg.com/react@18.2.0/umd/react.production.min.js" crossorigin></script>
 <script src="https://unpkg.com/react-dom@18.2.0/umd/react-dom.production.min.js" crossorigin></script>
 <script src="https://unpkg.com/graphiql@3.0.6/graphiql.min.js" crossorigin></script>
 <script>
-    // Load persisted headers (if any)
+    // Load persisted token
     try {
-        const savedToken = localStorage.getItem('graphiql_x_auth_token');
-        const savedUserId = localStorage.getItem('graphiql_x_user_id');
+        const savedToken = localStorage.getItem('graphiql_bearer_token');
         if (savedToken) document.getElementById('auth-token').value = savedToken;
-        if (savedUserId) document.getElementById('user-id').value = savedUserId;
-    } catch (e) { /* ignore localStorage errors */ }
+    } catch (e) { /* ignore */ }
 
-    // Custom fetcher that sends X-Auth-Token and X-User-Id from the toolbar inputs
-    async function customFetcher(graphQLParams) {
+    // Custom fetcher that sends Authorization: Bearer <token>
+    function customFetcher(graphQLParams, opts) {
         const token = document.getElementById('auth-token').value;
-        const userId = document.getElementById('user-id').value;
         const headers = {
-            'Content-Type': 'application/json'
+            'Content-Type': 'application/json',
+            'Accept': 'application/json'
         };
-        if (token && token.trim().length > 0) headers['X-Auth-Token'] = token.trim();
-        if (userId && userId.trim().length > 0) headers['X-User-Id'] = userId.trim();
+        if (token && token.trim().length > 0) {
+            headers['Authorization'] = 'Bearer ' + token.trim();
+        }
 
-        const resp = await fetch('/graphql', {
-            method: 'post',
+        return fetch('/graphql', {
+            method: 'POST',
             headers: headers,
             body: JSON.stringify(graphQLParams),
             credentials: 'same-origin'
-        });
-        return resp.json();
+        }).then(resp => resp.json());
     }
 
-    const fetcher = GraphiQL.createFetcher({url: '/graphql', fetch: customFetcher});
     const root = ReactDOM.createRoot(document.getElementById('graphiql'));
-    const graphiqlElement = React.createElement(GraphiQL, {fetcher: fetcher});
+    const graphiqlElement = React.createElement(GraphiQL, {fetcher: customFetcher});
     root.render(graphiqlElement);
 
-    // Apply button persists headers and focuses editor
+    // Apply button persists token and focuses editor
     document.getElementById('apply-headers').addEventListener('click', function() {
         try {
-            localStorage.setItem('graphiql_x_auth_token', document.getElementById('auth-token').value || '');
-            localStorage.setItem('graphiql_x_user_id', document.getElementById('user-id').value || '');
+            localStorage.setItem('graphiql_bearer_token', document.getElementById('auth-token').value || '');
         } catch (e) { /* ignore */ }
-        // focus the GraphiQL editor
         const textarea = document.querySelector('.graphiql-container textarea');
         if (textarea) textarea.focus();
     });

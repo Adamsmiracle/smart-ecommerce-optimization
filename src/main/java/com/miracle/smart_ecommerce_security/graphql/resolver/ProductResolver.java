@@ -4,8 +4,8 @@ import com.miracle.smart_ecommerce_security.domain.product.dto.CreateProductRequ
 import com.miracle.smart_ecommerce_security.domain.product.dto.ProductResponse;
 import com.miracle.smart_ecommerce_security.domain.product.dto.UpdateProductRequest;
 import com.miracle.smart_ecommerce_security.domain.product.service.ProductService;
+import com.miracle.smart_ecommerce_security.graphql.type.GraphQLPage;
 import lombok.RequiredArgsConstructor;
-import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Pageable;
 import org.springframework.graphql.data.method.annotation.Argument;
@@ -42,37 +42,37 @@ public class ProductResolver {
     }
 
     @QueryMapping
-    public Page<ProductResponse> products(@Argument int page, @Argument int size) {
+    public GraphQLPage<ProductResponse> products(@Argument int page, @Argument int size) {
         Pageable pageable = PageRequest.of(page, size);
-        return productService.getAllProducts(pageable);
+        return GraphQLPage.of(productService.getAllProducts(pageable));
     }
 
     @QueryMapping
-    public Page<ProductResponse> activeProducts(@Argument int page, @Argument int size) {
+    public GraphQLPage<ProductResponse> activeProducts(@Argument int page, @Argument int size) {
         Pageable pageable = PageRequest.of(page, size);
-        return productService.getActiveProducts(pageable);
+        return GraphQLPage.of(productService.getActiveProducts(pageable));
     }
 
     @QueryMapping
-    public Page<ProductResponse> productsByCategory(@Argument UUID categoryId,
+    public GraphQLPage<ProductResponse> productsByCategory(@Argument UUID categoryId,
                                                     @Argument int page,
                                                     @Argument int size) {
         Pageable pageable = PageRequest.of(page, size);
-        return productService.getProductsByCategory(categoryId, pageable);
+        return GraphQLPage.of(productService.getProductsByCategory(categoryId, pageable));
     }
 
     @QueryMapping
-    public Page<ProductResponse> searchProducts(@Argument String keyword,
+    public GraphQLPage<ProductResponse> searchProducts(@Argument String keyword,
                                                 @Argument int page,
                                                 @Argument int size) {
         Pageable pageable = PageRequest.of(page, size);
-        return productService.searchProducts(keyword, pageable);
+        return GraphQLPage.of(productService.searchProducts(keyword, pageable));
     }
 
     @QueryMapping
-    public Page<ProductResponse> productsInStock(@Argument int page, @Argument int size) {
+    public GraphQLPage<ProductResponse> productsInStock(@Argument int page, @Argument int size) {
         Pageable pageable = PageRequest.of(page, size);
-        return productService.getProductsInStock(pageable);
+        return GraphQLPage.of(productService.getProductsInStock(pageable));
     }
 
     // ========================================================================
@@ -82,15 +82,13 @@ public class ProductResolver {
     @MutationMapping
     @PreAuthorize("hasAnyRole('ADMIN', 'STAFF')")
     public ProductResponse createProduct(@Argument Map<String, Object> input) {
-        CreateProductRequest request = mapToProductRequest(input);
-        return productService.createProduct(request);
+        return productService.createProduct(mapToProductRequest(input));
     }
 
     @MutationMapping
     @PreAuthorize("hasAnyRole('ADMIN', 'STAFF')")
     public ProductResponse updateProduct(@Argument UUID id, @Argument Map<String, Object> input) {
-        UpdateProductRequest request = mapToUpdateProductRequest(input);
-        return productService.updateProduct(id, request);
+        return productService.updateProduct(id, mapToUpdateProductRequest(input));
     }
 
     @MutationMapping
@@ -128,36 +126,26 @@ public class ProductResolver {
     @SuppressWarnings("unchecked")
     private CreateProductRequest mapToProductRequest(Map<String, Object> input) {
         return CreateProductRequest.builder()
-                .categoryId(input.get("categoryId") != null
-                        ? UUID.fromString((String) input.get("categoryId")) : null)
+                .categoryId(input.get("categoryId") != null ? UUID.fromString((String) input.get("categoryId")) : null)
                 .name((String) input.get("name"))
                 .description((String) input.get("description"))
-                .price(input.get("price") != null
-                        ? new BigDecimal(input.get("price").toString()) : null)
-                .stockQuantity(input.get("stockQuantity") != null
-                        ? (Integer) input.get("stockQuantity") : null)
-                .isActive(input.get("isActive") != null
-                        ? (Boolean) input.get("isActive") : null)
-                .images(input.get("images") != null
-                        ? (List<String>) input.get("images") : null)
+                .price(input.get("price") != null ? new BigDecimal(input.get("price").toString()) : null)
+                .stockQuantity(input.get("stockQuantity") != null ? (Integer) input.get("stockQuantity") : null)
+                .isActive(input.get("isActive") != null ? (Boolean) input.get("isActive") : null)
+                .images(input.get("images") != null ? (List<String>) input.get("images") : null)
                 .build();
     }
 
     @SuppressWarnings("unchecked")
     private UpdateProductRequest mapToUpdateProductRequest(Map<String, Object> input) {
         return UpdateProductRequest.builder()
-                .categoryId(input.get("categoryId") != null
-                        ? UUID.fromString((String) input.get("categoryId")) : null)
+                .categoryId(input.get("categoryId") != null ? UUID.fromString((String) input.get("categoryId")) : null)
                 .name((String) input.get("name"))
                 .description((String) input.get("description"))
-                .price(input.get("price") != null
-                        ? new BigDecimal(input.get("price").toString()) : null)
-                .stockQuantity(input.get("stockQuantity") != null
-                        ? (Integer) input.get("stockQuantity") : null)
-                .isActive(input.get("isActive") != null
-                        ? (Boolean) input.get("isActive") : null)
-                .images(input.get("images") != null
-                        ? (List<String>) input.get("images") : null)
+                .price(input.get("price") != null ? new BigDecimal(input.get("price").toString()) : null)
+                .stockQuantity(input.get("stockQuantity") != null ? (Integer) input.get("stockQuantity") : null)
+                .isActive(input.get("isActive") != null ? (Boolean) input.get("isActive") : null)
+                .images(input.get("images") != null ? (List<String>) input.get("images") : null)
                 .build();
     }
 }

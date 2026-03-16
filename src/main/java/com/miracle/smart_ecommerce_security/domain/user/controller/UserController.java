@@ -1,6 +1,5 @@
 package com.miracle.smart_ecommerce_security.domain.user.controller;
 
-import com.miracle.smart_ecommerce_security.annotation.ValidSortFields;
 import com.miracle.smart_ecommerce_security.common.response.ApiResponse;
 import com.miracle.smart_ecommerce_security.domain.user.dto.request.CreateUserRequest;
 import com.miracle.smart_ecommerce_security.domain.user.dto.request.UpdateUserRequest;
@@ -13,7 +12,6 @@ import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.Valid;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
-import org.springframework.data.domain.Sort;
 import org.springframework.data.web.PageableDefault;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
@@ -75,10 +73,9 @@ public class UserController {
 
     @GetMapping
     @Operation(summary = "Get all users", description = "Retrieves all users with pagination")
-    @ValidSortFields(entityType = "User", fields = {"id", "emailAddress", "firstName", "lastName", "phoneNumber", "isActive", "role", "createdAt", "updatedAt"}, defaultField = "createdAt", defaultDirection = "DESC")
     @PreAuthorize("hasAnyRole('ADMIN', 'STAFF')")
     public ResponseEntity<ApiResponse<Page<UserResponse>>> getAllUsers(
-             @PageableDefault(size = 10, sort = "createdAt", direction = Sort.Direction.ASC) Pageable pageable) {
+            @PageableDefault Pageable pageable) {
         Page<UserResponse> users = userService.getAllUsers(pageable);
         return ResponseEntity.ok(ApiResponse.success(users));
     }
@@ -88,7 +85,7 @@ public class UserController {
     @PreAuthorize("hasAnyRole('ADMIN', 'STAFF')")
     public ResponseEntity<ApiResponse<Page<UserResponse>>> searchUsers(
             @Parameter(description = "Search keyword") @RequestParam String keyword,
-            @PageableDefault(size = 10, sort = "createdAt", direction = Sort.Direction.ASC) Pageable pageable) {
+            @PageableDefault Pageable pageable) {
         Page<UserResponse> users = userService.searchUsers(keyword, pageable);
         return ResponseEntity.ok(ApiResponse.success(users));
     }

@@ -39,7 +39,6 @@ public class CustomOAuth2UserService extends OidcUserService {
     @Override
     @Transactional
     public OidcUser loadUser(OidcUserRequest userRequest) throws OAuth2AuthenticationException {
-        // Let Spring load the OIDC user (validates ID token, fetches userinfo)
         OidcUser oidcUser = super.loadUser(userRequest);
 
         String provider   = userRequest.getClientRegistration().getRegistrationId(); // "google"

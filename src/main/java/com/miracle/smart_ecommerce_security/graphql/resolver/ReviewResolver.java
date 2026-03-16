@@ -3,7 +3,7 @@ package com.miracle.smart_ecommerce_security.graphql.resolver;
 import com.miracle.smart_ecommerce_security.domain.review.dto.CreateReviewRequest;
 import com.miracle.smart_ecommerce_security.domain.review.dto.ReviewResponse;
 import com.miracle.smart_ecommerce_security.domain.review.service.ReviewService;
-import org.springframework.data.domain.Page;
+import com.miracle.smart_ecommerce_security.graphql.type.GraphQLPage;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Pageable;
 import lombok.RequiredArgsConstructor;
@@ -37,15 +37,15 @@ public class ReviewResolver {
     }
 
     @QueryMapping
-    public Page<ReviewResponse> reviewsByProduct(@Argument UUID productId, @Argument int page, @Argument int size) {
+    public GraphQLPage<ReviewResponse> reviewsByProduct(@Argument UUID productId, @Argument int page, @Argument int size) {
         Pageable pageable = PageRequest.of(page, size);
-        return reviewService.getReviewsByProductId(productId, pageable);
+        return GraphQLPage.of(reviewService.getReviewsByProductId(productId, pageable));
     }
 
     @QueryMapping
-    public Page<ReviewResponse> reviewsByUser(@Argument UUID userId, @Argument int page, @Argument int size) {
+    public GraphQLPage<ReviewResponse> reviewsByUser(@Argument UUID userId, @Argument int page, @Argument int size) {
         Pageable pageable = PageRequest.of(page, size);
-        return reviewService.getReviewsByUserId(userId, pageable);
+        return GraphQLPage.of(reviewService.getReviewsByUserId(userId, pageable));
     }
 
     @QueryMapping

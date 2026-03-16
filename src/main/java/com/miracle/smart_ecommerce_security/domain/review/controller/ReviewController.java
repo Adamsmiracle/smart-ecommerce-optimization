@@ -11,7 +11,6 @@ import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.Valid;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
-import org.springframework.data.domain.Sort;
 import org.springframework.data.web.PageableDefault;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
@@ -51,7 +50,7 @@ public class ReviewController {
     @GetMapping
     @Operation(summary = "Get all reviews", description = "Retrieve all reviews (paginated)")
     public ResponseEntity<ApiResponse<Page<ReviewResponse>>> getAllReviews(
-            @PageableDefault(size = 10, sort = "createdAt", direction = Sort.Direction.ASC) Pageable pageable) {
+            @PageableDefault(size = 10) Pageable pageable) {
         Page<ReviewResponse> reviews = reviewService.getAllReviews(pageable);
         return ResponseEntity.ok(ApiResponse.success(reviews));
     }
@@ -68,7 +67,7 @@ public class ReviewController {
     @Operation(summary = "Get reviews for a product", description = "Retrieves all reviews for a specific product")
     public ResponseEntity<ApiResponse<Page<ReviewResponse>>> getReviewsByProductId(
             @Parameter(description = "Product ID") @PathVariable UUID productId,
-            @PageableDefault(size = 10, sort = "createdAt", direction = Sort.Direction.ASC) Pageable pageable) {
+            @PageableDefault(size = 10) Pageable pageable) {
         Page<ReviewResponse> reviews = reviewService.getReviewsByProductId(productId, pageable);
         return ResponseEntity.ok(ApiResponse.success(reviews));
     }
@@ -77,7 +76,7 @@ public class ReviewController {
     @Operation(summary = "Get reviews by user", description = "Retrieves all reviews submitted by a specific user")
     public ResponseEntity<ApiResponse<Page<ReviewResponse>>> getReviewsByUserId(
             @Parameter(description = "User ID") @PathVariable UUID userId,
-            @PageableDefault(size = 10, sort = "createdAt", direction = Sort.Direction.ASC) Pageable pageable) {
+            @PageableDefault(size = 10) Pageable pageable) {
         Page<ReviewResponse> reviews = reviewService.getReviewsByUserId(userId, pageable);
         return ResponseEntity.ok(ApiResponse.success(reviews));
     }

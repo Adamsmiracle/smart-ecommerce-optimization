@@ -8,7 +8,6 @@ import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
-import org.springframework.data.domain.Sort;
 import org.springframework.data.web.PageableDefault;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
@@ -36,6 +35,7 @@ public class PaymentMethodController {
             @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "200", description = "Payment method created successfully"),
             @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "400", description = "Invalid input")
     })
+    @PreAuthorize("hasAnyRole('ADMIN', 'CUSTOMER')")
     public ResponseEntity<ApiResponse<PaymentMethodResponse>> create(@Valid @RequestBody PaymentMethodRequest req) {
         return ResponseEntity.ok(ApiResponse.success(service.create(req), "Payment method created"));
     }
@@ -46,6 +46,7 @@ public class PaymentMethodController {
             @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "200", description = "Payment method updated successfully"),
             @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "404", description = "Payment method not found")
     })
+    @PreAuthorize("hasAnyRole('ADMIN', 'CUSTOMER')")
     public ResponseEntity<ApiResponse<PaymentMethodResponse>> update(
             @Parameter(description = "Payment method ID") @PathVariable UUID id,
             @Valid @RequestBody PaymentMethodRequest req) {
@@ -71,10 +72,10 @@ public class PaymentMethodController {
     })
     public ResponseEntity<ApiResponse<Page<PaymentMethodResponse>>> getByUser(
             @Parameter(description = "User ID") @PathVariable UUID userId,
-            @PageableDefault(size = 10, sort = "createdAt", direction = Sort.Direction.ASC) Pageable pageable) {
+            @PageableDefault(size = 10) Pageable pageable) {
         return ResponseEntity.ok(ApiResponse.success(service.getByUserId(userId, pageable)));
     }
-
+@PreAuthorize("hasAnyRole('ADMIN', 'CUSTOMER')")
     @DeleteMapping("/{id}")
     @Operation(summary = "Delete payment method", description = "Delete a payment method by id")
     @ApiResponses(value = {

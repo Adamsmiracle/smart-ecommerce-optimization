@@ -13,7 +13,6 @@ import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Pageable;
-import org.springframework.data.domain.Sort;
 import org.springframework.data.web.PageableDefault;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
@@ -57,9 +56,10 @@ public class AddressController {
     }
 
     @GetMapping
-    @Operation(summary = "Get all addresses", description = "Retrieves all addresses in the system (Admin) - paginated")
+    @PreAuthorize("hasAnyRole('ADMIN', 'STAFF')")
+    @Operation(summary = "Get all addresses", description = "Retrieves all addresses in the system (Admin/Staff) - paginated")
     public ResponseEntity<ApiResponse<Page<AddressResponse>>> getAllAddresses(
-            @PageableDefault(size = 10, sort = "createdAt", direction = Sort.Direction.ASC) Pageable pageable) {
+            @PageableDefault(size = 10) Pageable pageable) {
         Page<AddressResponse> addresses = addressService.getAllAddresses(pageable);
         return ResponseEntity.ok(ApiResponse.success(addresses));
     }
@@ -109,6 +109,7 @@ public class AddressController {
 
 
     @DeleteMapping("/{id}")
+    @PreAuthorize("hasAnyRole('ADMIN', 'STAFF')")
     @Operation(summary = "Delete address", description = "Deletes an address by ID")
     public ResponseEntity<ApiResponse<Void>> deleteAddress(
             @Parameter(description = "Address ID") @PathVariable UUID id) {
@@ -116,4 +117,3 @@ public class AddressController {
         return ResponseEntity.ok(ApiResponse.success("Address deleted successfully"));
     }
 }
-

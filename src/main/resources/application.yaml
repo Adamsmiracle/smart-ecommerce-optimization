@@ -40,6 +40,16 @@ spring:
   flyway:
     enabled: false
 
+  # GraphQL Configuration
+  graphql:
+    graphiql:
+      enabled: true
+      path: /graphiql
+    schema:
+      printer:
+        enabled: true
+    path: /graphql
+
 
   # Spring Security OAuth2 (Google)
   security:

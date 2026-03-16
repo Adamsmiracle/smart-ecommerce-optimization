@@ -3,8 +3,8 @@ package com.miracle.smart_ecommerce_security.graphql.resolver;
 import com.miracle.smart_ecommerce_security.domain.user.dto.request.CreateAddressRequest;
 import com.miracle.smart_ecommerce_security.domain.user.dto.response.AddressResponse;
 import com.miracle.smart_ecommerce_security.domain.user.service.AddressService;
+import com.miracle.smart_ecommerce_security.graphql.type.GraphQLPage;
 import lombok.RequiredArgsConstructor;
-import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.graphql.data.method.annotation.Argument;
 import org.springframework.graphql.data.method.annotation.MutationMapping;
@@ -38,31 +38,32 @@ public class AddressResolver {
     }
 
     @QueryMapping
-    public Page<AddressResponse> addresses(@Argument Integer page, @Argument Integer size) {
+    @PreAuthorize("hasAnyRole('ADMIN', 'STAFF')")
+    public GraphQLPage<AddressResponse> addresses(@Argument Integer page, @Argument Integer size) {
         int p = (page == null) ? 0 : page;
         int s = (size == null) ? 10 : size;
-        return addressService.getAllAddresses(PageRequest.of(p, s));
+        return GraphQLPage.of(addressService.getAllAddresses(PageRequest.of(p, s)));
     }
 
     @QueryMapping
-    public Page<AddressResponse> addressesByUser(@Argument UUID userId, @Argument Integer page, @Argument Integer size) {
+    public GraphQLPage<AddressResponse> addressesByUser(@Argument UUID userId, @Argument Integer page, @Argument Integer size) {
         int p = (page == null) ? 0 : page;
         int s = (size == null) ? 10 : size;
-        return addressService.getAddressesByUserId(userId, PageRequest.of(p, s));
+        return GraphQLPage.of(addressService.getAddressesByUserId(userId, PageRequest.of(p, s)));
     }
 
     @QueryMapping
-    public Page<AddressResponse> shippingAddresses(@Argument UUID userId, @Argument Integer page, @Argument Integer size) {
+    public GraphQLPage<AddressResponse> shippingAddresses(@Argument UUID userId, @Argument Integer page, @Argument Integer size) {
         int p = (page == null) ? 0 : page;
         int s = (size == null) ? 10 : size;
-        return addressService.getAddressesByUserIdAndType(userId, "shipping", PageRequest.of(p, s));
+        return GraphQLPage.of(addressService.getAddressesByUserIdAndType(userId, "shipping", PageRequest.of(p, s)));
     }
 
     @QueryMapping
-    public Page<AddressResponse> billingAddresses(@Argument UUID userId, @Argument Integer page, @Argument Integer size) {
+    public GraphQLPage<AddressResponse> billingAddresses(@Argument UUID userId, @Argument Integer page, @Argument Integer size) {
         int p = (page == null) ? 0 : page;
         int s = (size == null) ? 10 : size;
-        return addressService.getAddressesByUserIdAndType(userId, "billing", PageRequest.of(p, s));
+        return GraphQLPage.of(addressService.getAddressesByUserIdAndType(userId, "billing", PageRequest.of(p, s)));
     }
 
     // ========================================================================
@@ -100,6 +101,7 @@ public class AddressResolver {
     }
 
     @MutationMapping
+    @PreAuthorize("hasAnyRole('ADMIN', 'STAFF')")
     public boolean deleteAddress(@Argument UUID id) {
         addressService.deleteAddress(id);
         return true;

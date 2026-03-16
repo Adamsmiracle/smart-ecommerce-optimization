@@ -60,7 +60,7 @@ public class OAuth2AuthenticationSuccessHandler implements AuthenticationSuccess
                                         Authentication authentication) throws IOException {
 
         OidcUser oidcUser = (OidcUser) authentication.getPrincipal();
-        User user = (User) oidcUser.getAttribute(CustomOAuth2UserService.APP_USER_ATTRIBUTE);
+        User user = oidcUser.getAttribute(CustomOAuth2UserService.APP_USER_ATTRIBUTE);
 
         if (user == null) {
             log.error("OAUTH2_ERROR — appUser attribute missing from OidcUser principal");
@@ -84,7 +84,6 @@ public class OAuth2AuthenticationSuccessHandler implements AuthenticationSuccess
         log.info("OAUTH2_JWT_ISSUED — UserId: {} — Role: {} — Email: {}",
                 user.getId(), user.getRole(), user.getEmailAddress());
 
-        // Invalidate the OAuth2 session — JWT takes over for all future requests
         HttpSession session = request.getSession(false);
         if (session != null) {
             session.invalidate();

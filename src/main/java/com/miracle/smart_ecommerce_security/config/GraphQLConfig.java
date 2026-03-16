@@ -1,86 +1,31 @@
 package com.miracle.smart_ecommerce_security.config;
 
-import com.miracle.smart_ecommerce_security.domain.auth.service.TokenService;
-import com.miracle.smart_ecommerce_security.domain.user.repository.UserRepository;
 import graphql.scalars.ExtendedScalars;
-import graphql.schema.GraphQLScalarType;
-import lombok.RequiredArgsConstructor;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.graphql.execution.RuntimeWiringConfigurer;
 
-
-import com.miracle.smart_ecommerce_security.domain.user.entity.User;
-import org.slf4j.MDC;
-import org.springframework.graphql.server.WebGraphQlInterceptor;
-
-import java.util.Optional;
-import java.util.UUID;
-
-
 /**
- * GraphQL Configuration
- * Registers custom scalar types for GraphQL schema
+ * GraphQL runtime wiring configuration.
+ *
+ * Registers the custom scalars declared in schema.graphqls:
+ *   - UUID          → graphql-java-extended-scalars UUID coercing
+ *   - BigDecimal    → graphql-java-extended-scalars BigDecimal coercing
+ *   - OffsetDateTime → graphql-java-extended-scalars DateTime coercing
+ *
+ * Without this bean, Spring GraphQL will start but immediately fail schema
+ * introspection with "No scalar found for UUID / BigDecimal / OffsetDateTime",
+ * which shows up in GraphiQL as "Error fetching schema".
  */
 @Configuration
-@RequiredArgsConstructor
 public class GraphQLConfig {
-
-    private final TokenService tokenService;
-    private final UserRepository userRepository;
 
     @Bean
     public RuntimeWiringConfigurer runtimeWiringConfigurer() {
-        // Create BigDecimal scalar with the exact name used in schema
-        GraphQLScalarType bigDecimalScalar = GraphQLScalarType.newScalar()
-                .name("BigDecimal")
-                .coercing(ExtendedScalars.GraphQLBigDecimal.getCoercing())
-                .build();
-
-        // Create OffsetDateTime scalar with the exact name used in schema
-        GraphQLScalarType offsetDateTimeScalar = GraphQLScalarType.newScalar()
-                .name("OffsetDateTime")
-                .coercing(ExtendedScalars.DateTime.getCoercing())
-                .build();
-
         return wiringBuilder -> wiringBuilder
                 .scalar(ExtendedScalars.UUID)
-                .scalar(offsetDateTimeScalar)
-                .scalar(bigDecimalScalar)
-                .build();
-    }
-
-
-
-    @Bean
-    public WebGraphQlInterceptor authInterceptor() {
-        return (request, chain) -> {
-            String token = request.getHeaders().getFirst("X-Auth-Token");
-            String userIdHeader = request.getHeaders().getFirst("X-User-Id");
-
-            if (token != null && !token.isBlank()) {
-                Optional<TokenService.AuthPrincipal> principal = tokenService.validateToken(token.trim());
-                if (principal.isPresent()) {
-                    MDC.put("userId", principal.get().userId.toString());
-                    MDC.put("userRole", principal.get().role);
-                }
-            } else if (userIdHeader != null && !userIdHeader.isBlank()) {
-                try {
-                    UUID id = UUID.fromString(userIdHeader);
-                    Optional<User> maybe = userRepository.findById(id);
-                    if (maybe.isPresent()) {
-                        User u = maybe.get();
-                        MDC.put("userId", u.getId().toString());
-                        MDC.put("userRole", u.getRole() != null ? u.getRole() : "CUSTOMER");
-                    }
-                } catch (IllegalArgumentException ignored) {}
-            }
-
-            return chain.next(request).doFinally(signal -> {
-                MDC.remove("userId");
-                MDC.remove("userRole");
-            });
-        };
+                .scalar(ExtendedScalars.GraphQLBigDecimal)
+                .scalar(ExtendedScalars.DateTime);        // maps to OffsetDateTime
     }
 }
 

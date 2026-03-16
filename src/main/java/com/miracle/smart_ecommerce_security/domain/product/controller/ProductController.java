@@ -11,7 +11,6 @@ import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.Valid;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
-import org.springframework.data.domain.Sort;
 import org.springframework.data.web.PageableDefault;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
@@ -60,7 +59,7 @@ public class ProductController {
     @GetMapping
     @Operation(summary = "Get all products", description = "Retrieves all products with pagination")
     public ResponseEntity<ApiResponse<Page<ProductResponse>>> getAllProducts(
-            @PageableDefault(size = 10, sort = "createdAt", direction = Sort.Direction.ASC) Pageable pageable) {
+            @PageableDefault(size = 10) Pageable pageable) {
         Page<ProductResponse> products = productService.getAllProducts(pageable);
         return ResponseEntity.ok(ApiResponse.success(products));
     }
@@ -68,7 +67,7 @@ public class ProductController {
     @GetMapping("/active")
     @Operation(summary = "Get active products", description = "Retrieves active products with pagination")
     public ResponseEntity<ApiResponse<Page<ProductResponse>>> getActiveProducts(
-            @PageableDefault(size = 10, sort = "createdAt", direction = Sort.Direction.ASC) Pageable pageable) {
+            @PageableDefault(size = 10) Pageable pageable) {
         Page<ProductResponse> products = productService.getActiveProducts(pageable);
         return ResponseEntity.ok(ApiResponse.success(products));
     }
@@ -77,7 +76,7 @@ public class ProductController {
     @Operation(summary = "Get products by category", description = "Retrieves products by category ID")
     public ResponseEntity<ApiResponse<Page<ProductResponse>>> getProductsByCategory(
             @Parameter(description = "Category ID") @PathVariable UUID categoryId,
-            @PageableDefault(size = 10, sort = "createdAt", direction = Sort.Direction.ASC) Pageable pageable) {
+            @PageableDefault(size = 10) Pageable pageable) {
         Page<ProductResponse> products = productService.getProductsByCategory(categoryId, pageable);
         return ResponseEntity.ok(ApiResponse.success(products));
     }
@@ -86,7 +85,7 @@ public class ProductController {
     @Operation(summary = "Search products", description = "Search products by keyword")
     public ResponseEntity<ApiResponse<Page<ProductResponse>>> searchProducts(
             @Parameter(description = "Search keyword") @RequestParam String keyword,
-            @PageableDefault(size = 10, sort = "createdAt", direction = Sort.Direction.ASC) Pageable pageable) {
+            @PageableDefault(size = 10) Pageable pageable) {
         Page<ProductResponse> products = productService.searchProducts(keyword, pageable);
         return ResponseEntity.ok(ApiResponse.success(products));
     }
@@ -96,7 +95,7 @@ public class ProductController {
     public ResponseEntity<ApiResponse<Page<ProductResponse>>> getProductsByPriceRange(
             @Parameter(description = "Minimum price") @RequestParam BigDecimal minPrice,
             @Parameter(description = "Maximum price") @RequestParam BigDecimal maxPrice,
-            @PageableDefault(size = 10, sort = "createdAt", direction = Sort.Direction.ASC) Pageable pageable) {
+            @PageableDefault(size = 10) Pageable pageable) {
         Page<ProductResponse> products = productService.getProductsByPriceRange(minPrice, maxPrice, pageable);
         return ResponseEntity.ok(ApiResponse.success(products));
     }
@@ -104,7 +103,7 @@ public class ProductController {
     @GetMapping("/in-stock")
     @Operation(summary = "Get products in stock", description = "Retrieves products that are in stock")
     public ResponseEntity<ApiResponse<Page<ProductResponse>>> getProductsInStock(
-            @PageableDefault(size = 10, sort = "createdAt", direction = Sort.Direction.ASC) Pageable pageable) {
+            @PageableDefault(size = 10) Pageable pageable) {
         Page<ProductResponse> products = productService.getProductsInStock(pageable);
         return ResponseEntity.ok(ApiResponse.success(products));
     }

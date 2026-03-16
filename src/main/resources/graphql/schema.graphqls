@@ -4,7 +4,7 @@
 
 scalar UUID
 scalar BigDecimal
-scalar OffsetDateTime
+scalar DateTime
 
 # ============================================================================
 # TYPES
@@ -18,8 +18,8 @@ type User {
     fullName: String
     phoneNumber: String
     isActive: Boolean!
-    createdAt: OffsetDateTime
-    updatedAt: OffsetDateTime
+    createdAt: DateTime
+    updatedAt: DateTime
     role: String
 }
 
@@ -32,8 +32,8 @@ type Product {
     stockQuantity: Int!
     isActive: Boolean!
     images: [String]
-    createdAt: OffsetDateTime
-    updatedAt: OffsetDateTime
+    createdAt: DateTime
+    updatedAt: DateTime
 }
 
 type Category {
@@ -51,7 +51,7 @@ type CartItem {
 type Cart {
     id: UUID!
     userId: UUID!
-    createdAt: OffsetDateTime
+    createdAt: DateTime
 }
 
 type OrderItem {
@@ -72,8 +72,8 @@ type Order {
     paymentStatus: String
     subtotal: BigDecimal!
     total: BigDecimal!
-    createdAt: OffsetDateTime
-    cancelledAt: OffsetDateTime
+    createdAt: DateTime
+    cancelledAt: DateTime
 }
 
 type Review {
@@ -82,8 +82,8 @@ type Review {
     productId: UUID!
     rating: Int!
     comment: String
-    createdAt: OffsetDateTime
-    updatedAt: OffsetDateTime
+    createdAt: DateTime
+    updatedAt: DateTime
 }
 
 type Address {
@@ -95,59 +95,109 @@ type Address {
     country: String!
     postalCode: String
     addressType: String
-    createdAt: OffsetDateTime
+    createdAt: DateTime
+}
+
+# Auth types
+type AuthPayload {
+    userId: UUID!
+    role: String!
+    token: String!
+    refreshToken: String!
+    tokenType: String!
+    expiresIn: String
+    issuedAt: String
+    expiresAt: String
+    refreshExpiresIn: String
+}
+
+type TokenIntrospection {
+    valid: Boolean!
+    blacklisted: Boolean!
+    error: String
+    algorithm: String
+    tokenType: String
+    jti: String
+    subject: String
+    role: String
+    issuedAt: String
+    expiresAt: String
 }
 
 # ============================================================================
-# PAGINATION TYPES (Updated to match PageResponse structure)
+# PAGINATION TYPES — fields match Spring Data Page serialization
 # ============================================================================
 
 type UserPage {
     content: [User]!
-    pageNumber: Int!
-    pageSize: Int!
     totalElements: Int!
     totalPages: Int!
+    size: Int!
+    number: Int!
     first: Boolean!
     last: Boolean!
-    hasNext: Boolean!
-    hasPrevious: Boolean!
+    numberOfElements: Int!
+    empty: Boolean!
 }
 
 type ProductPage {
     content: [Product]!
-    pageNumber: Int!
-    pageSize: Int!
     totalElements: Int!
     totalPages: Int!
+    size: Int!
+    number: Int!
     first: Boolean!
     last: Boolean!
-    hasNext: Boolean!
-    hasPrevious: Boolean!
+    numberOfElements: Int!
+    empty: Boolean!
 }
 
 type OrderPage {
     content: [Order]!
-    pageNumber: Int!
-    pageSize: Int!
     totalElements: Int!
     totalPages: Int!
+    size: Int!
+    number: Int!
     first: Boolean!
     last: Boolean!
-    hasNext: Boolean!
-    hasPrevious: Boolean!
+    numberOfElements: Int!
+    empty: Boolean!
 }
 
 type ReviewPage {
     content: [Review]!
-    pageNumber: Int!
-    pageSize: Int!
     totalElements: Int!
     totalPages: Int!
+    size: Int!
+    number: Int!
     first: Boolean!
     last: Boolean!
-    hasNext: Boolean!
-    hasPrevious: Boolean!
+    numberOfElements: Int!
+    empty: Boolean!
+}
+
+type CategoryPage {
+    content: [Category]!
+    totalElements: Int!
+    totalPages: Int!
+    size: Int!
+    number: Int!
+    first: Boolean!
+    last: Boolean!
+    numberOfElements: Int!
+    empty: Boolean!
+}
+
+type AddressPage {
+    content: [Address]!
+    totalElements: Int!
+    totalPages: Int!
+    size: Int!
+    number: Int!
+    first: Boolean!
+    last: Boolean!
+    numberOfElements: Int!
+    empty: Boolean!
 }
 
 # ============================================================================
@@ -231,6 +281,14 @@ input OrderItemInput {
     quantity: Int!
 }
 
+input RegisterInput {
+    emailAddress: String!
+    firstName: String
+    lastName: String
+    phoneNumber: String
+    password: String!
+}
+
 input CreateOrderInput {
     userId: UUID!
     paymentMethodId: UUID
@@ -269,7 +327,7 @@ type Query {
 
     # Category queries
     category(id: UUID!): Category
-    categories: [Category]!
+    categories(page: Int = 0, size: Int = 10): CategoryPage!
 
     # Cart queries
     cart(userId: UUID!): Cart
@@ -293,9 +351,13 @@ type Query {
 
     # Address queries
     address(id: UUID!): Address
-    addressesByUser(userId: UUID!): [Address]!
-    shippingAddresses(userId: UUID!): [Address]!
-    billingAddresses(userId: UUID!): [Address]!
+    addresses(page: Int = 0, size: Int = 10): AddressPage!
+    addressesByUser(userId: UUID!, page: Int = 0, size: Int = 10): AddressPage!
+    shippingAddresses(userId: UUID!, page: Int = 0, size: Int = 10): AddressPage!
+    billingAddresses(userId: UUID!, page: Int = 0, size: Int = 10): AddressPage!
+
+    # Auth queries
+    inspectToken(token: String!): TokenIntrospection!
 }
 
 # ============================================================================
@@ -346,4 +408,10 @@ type Mutation {
     createAddress(input: CreateAddressInput!): Address!
     updateAddress(id: UUID!, input: CreateAddressInput!): Address!
     deleteAddress(id: UUID!): Boolean!
+
+    # Auth mutations
+    login(email: String!, password: String!): AuthPayload!
+    register(input: RegisterInput!): AuthPayload!
+    refreshToken(refreshToken: String!): AuthPayload!
+    logout(token: String!): Boolean!
 }

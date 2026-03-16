@@ -13,7 +13,6 @@ import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.Valid;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
-import org.springframework.data.domain.Sort;
 import org.springframework.data.web.PageableDefault;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
@@ -82,7 +81,7 @@ public class OrderController {
     @PreAuthorize("hasAnyRole('ADMIN', 'STAFF')")
     @Operation(summary = "Get all orders", description = "Retrieves all orders with pagination (Admin)")
     public ResponseEntity<ApiResponse<Page<OrderResponse>>> getAllOrders(
-            @PageableDefault(size = 10, sort = "createdAt", direction = Sort.Direction.ASC) Pageable pageable) {
+            @PageableDefault(size = 10) Pageable pageable) {
         Page<OrderResponse> orders = orderService.getAllOrders(pageable);
         return ResponseEntity.ok(ApiResponse.success(orders));
     }
@@ -91,7 +90,7 @@ public class OrderController {
     @Operation(summary = "Get orders by user", description = "Retrieves all orders for a specific user")
     public ResponseEntity<ApiResponse<Page<OrderResponse>>> getOrdersByUserId(
             @Parameter(description = "User ID") @PathVariable UUID userId,
-            @PageableDefault(size = 10, sort = "createdAt", direction = Sort.Direction.ASC) Pageable pageable) {
+            @PageableDefault(size = 10) Pageable pageable) {
         Page<OrderResponse> orders = orderService.getOrdersByUserId(userId, pageable);
         return ResponseEntity.ok(ApiResponse.success(orders));
     }
@@ -102,7 +101,7 @@ public class OrderController {
     public ResponseEntity<ApiResponse<Page<OrderResponse>>> getOrdersByStatus(
             @Parameter(description = "Order status (pending, confirmed, processing, shipped, delivered, cancelled)")
             @PathVariable String status,
-            @PageableDefault(size = 10, sort = "createdAt", direction = Sort.Direction.ASC) Pageable pageable) {
+            @PageableDefault(size = 10) Pageable pageable) {
         Page<OrderResponse> orders = orderService.getOrdersByStatus(status, pageable);
         return ResponseEntity.ok(ApiResponse.success(orders));
     }

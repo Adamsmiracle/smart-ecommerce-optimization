@@ -4,8 +4,8 @@ import com.miracle.smart_ecommerce_security.domain.user.dto.request.CreateUserRe
 import com.miracle.smart_ecommerce_security.domain.user.dto.request.UpdateUserRequest;
 import com.miracle.smart_ecommerce_security.domain.user.dto.response.UserResponse;
 import com.miracle.smart_ecommerce_security.domain.user.service.UserService;
+import com.miracle.smart_ecommerce_security.graphql.type.GraphQLPage;
 import lombok.RequiredArgsConstructor;
-import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Pageable;
 import org.springframework.graphql.data.method.annotation.Argument;
@@ -47,18 +47,18 @@ public class UserResolver {
 
     @QueryMapping
     @PreAuthorize("hasAnyRole('ADMIN', 'STAFF')")
-    public Page<UserResponse> users(@Argument int page, @Argument int size) {
+    public GraphQLPage<UserResponse> users(@Argument int page, @Argument int size) {
         Pageable pageable = PageRequest.of(page, size);
-        return userService.getAllUsers(pageable);
+        return GraphQLPage.of(userService.getAllUsers(pageable));
     }
 
     @QueryMapping
     @PreAuthorize("hasAnyRole('ADMIN', 'STAFF')")
-    public Page<UserResponse> searchUsers(@Argument String keyword,
-                                          @Argument int page,
-                                          @Argument int size) {
+    public GraphQLPage<UserResponse> searchUsers(@Argument String keyword,
+                                                 @Argument int page,
+                                                 @Argument int size) {
         Pageable pageable = PageRequest.of(page, size);
-        return userService.searchUsers(keyword, pageable);
+        return GraphQLPage.of(userService.searchUsers(keyword, pageable));
     }
 
     // ========================================================================

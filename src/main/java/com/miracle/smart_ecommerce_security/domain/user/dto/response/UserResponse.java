@@ -26,4 +26,10 @@ public class UserResponse {
     private OffsetDateTime createdAt;
     private OffsetDateTime updatedAt;
     private String role;
+
+    /** Derived field — maps to schema fullName on type User */
+    public String getFullName() {
+        if (firstName == null && lastName == null) return null;
+        return ((firstName != null ? firstName : "") + " " + (lastName != null ? lastName : "")).trim();
+    }
 }

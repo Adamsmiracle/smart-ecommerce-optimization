@@ -1,11 +1,16 @@
 package com.miracle.smart_ecommerce_security.exception;
 
 import com.miracle.smart_ecommerce_security.common.response.ApiResponse;
+import graphql.GraphQLError;
+import graphql.GraphqlErrorBuilder;
+import graphql.schema.DataFetchingEnvironment;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.slf4j.MDC;
 import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.data.mapping.PropertyReferenceException;
+import org.springframework.graphql.execution.DataFetcherExceptionResolverAdapter;
+import org.springframework.graphql.execution.ErrorType;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.MethodArgumentNotValidException;
@@ -19,15 +24,71 @@ import jakarta.validation.ConstraintViolationException;
 
 import java.time.Instant;
 import java.util.stream.Collectors;
-import java.util.Map; // added missing import
-
-// explicit import to avoid compile ordering issues
-
+import java.util.Map;
 
 @ControllerAdvice
-public class GlobalExceptionHandler {
+public class GlobalExceptionHandler extends DataFetcherExceptionResolverAdapter {
 
     private static final Logger log = LoggerFactory.getLogger(GlobalExceptionHandler.class);
+
+    @Override
+    protected GraphQLError resolveToSingleError(Throwable ex, DataFetchingEnvironment env) {
+        if (ex instanceof ResourceNotFoundException) {
+            return GraphqlErrorBuilder.newError()
+                    .errorType(ErrorType.NOT_FOUND)
+                    .message(ex.getMessage())
+                    .path(env.getExecutionStepInfo().getPath())
+                    .location(env.getField().getSourceLocation())
+                    .build();
+        }
+        
+        if (ex instanceof BadRequestException || ex instanceof IllegalArgumentException) {
+            return GraphqlErrorBuilder.newError()
+                    .errorType(ErrorType.BAD_REQUEST)
+                    .message(ex.getMessage())
+                    .path(env.getExecutionStepInfo().getPath())
+                    .location(env.getField().getSourceLocation())
+                    .build();
+        }
+        
+        if (ex instanceof UnauthorizedException) {
+            return GraphqlErrorBuilder.newError()
+                    .errorType(ErrorType.UNAUTHORIZED)
+                    .message(ex.getMessage())
+                    .path(env.getExecutionStepInfo().getPath())
+                    .location(env.getField().getSourceLocation())
+                    .build();
+        }
+        
+        if (ex instanceof ForbiddenException || ex instanceof org.springframework.security.access.AccessDeniedException) {
+            return GraphqlErrorBuilder.newError()
+                    .errorType(ErrorType.FORBIDDEN)
+                    .message("Access denied. Insufficient role privileges.")
+                    .path(env.getExecutionStepInfo().getPath())
+                    .location(env.getField().getSourceLocation())
+                    .build();
+        }
+        
+        if (ex instanceof DuplicateResourceException) {
+            return GraphqlErrorBuilder.newError()
+                    .errorType(ErrorType.BAD_REQUEST)
+                    .message(ex.getMessage())
+                    .path(env.getExecutionStepInfo().getPath())
+                    .location(env.getField().getSourceLocation())
+                    .build();
+        }
+        
+        if (ex instanceof InsufficientStockException || ex instanceof OrderProcessingException) {
+            return GraphqlErrorBuilder.newError()
+                    .errorType(ErrorType.BAD_REQUEST)
+                    .message(ex.getMessage())
+                    .path(env.getExecutionStepInfo().getPath())
+                    .location(env.getField().getSourceLocation())
+                    .build();
+        }
+        
+        return null;
+    }
 
     private String getClientIp(HttpServletRequest request) {
         String forwarded = request.getHeader("X-Forwarded-For");

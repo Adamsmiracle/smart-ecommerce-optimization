@@ -3,8 +3,8 @@ package com.miracle.smart_ecommerce_security.graphql.resolver;
 import com.miracle.smart_ecommerce_security.domain.category.dto.CategoryResponse;
 import com.miracle.smart_ecommerce_security.domain.category.dto.CreateCategoryRequest;
 import com.miracle.smart_ecommerce_security.domain.category.service.CategoryService;
+import com.miracle.smart_ecommerce_security.graphql.type.GraphQLPage;
 import lombok.RequiredArgsConstructor;
-import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.graphql.data.method.annotation.Argument;
 import org.springframework.graphql.data.method.annotation.MutationMapping;
@@ -38,10 +38,10 @@ public class CategoryResolver {
     }
 
     @QueryMapping
-    public Page<CategoryResponse> categories(@Argument Integer page, @Argument Integer size) {
+    public GraphQLPage<CategoryResponse> categories(@Argument Integer page, @Argument Integer size) {
         int p = (page == null) ? 0 : page;
         int s = (size == null) ? 10 : size;
-        return categoryService.getAllCategories(PageRequest.of(p, s));
+        return GraphQLPage.of(categoryService.getAllCategories(PageRequest.of(p, s)));
     }
 
     // ========================================================================
