@@ -1,6 +1,7 @@
 package com.miracle.smart_ecommerce_security.config;
 
 import com.miracle.smart_ecommerce_security.domain.auth.filter.JwtAuthenticationFilter;
+import com.miracle.smart_ecommerce_security.domain.auth.handler.AuthenticationFailureHandler;
 import com.miracle.smart_ecommerce_security.domain.auth.handler.OAuth2AuthenticationSuccessHandler;
 import com.miracle.smart_ecommerce_security.domain.auth.service.TokenActivityService;
 import com.miracle.smart_ecommerce_security.domain.auth.service.TokenService;
@@ -50,10 +51,9 @@ import java.util.List;
  * </ul>
  *
  * <h3>Roles</h3>
- * Three roles are defined: {@code ADMIN}, {@code STAFF}, {@code CUSTOMER}.
+ * Two roles are defined: {@code ADMIN}, {@code CUSTOMER}.
  * <ul>
  *   <li>{@code ADMIN} — full access to everything including security reports and destructive deletes</li>
- *   <li>{@code STAFF} — store operator; manages products, categories, orders, shipping; read-only on users</li>
  *   <li>{@code CUSTOMER} — end-user; own profile, cart, orders, reviews</li>
  * </ul>
  * Endpoints are annotated with {@code @PreAuthorize} to enforce role-based access.
@@ -75,6 +75,7 @@ public class SecurityConfig {
     private final TokenActivityService tokenActivityService;
     private final CustomOAuth2UserService customOAuth2UserService;
     private final OAuth2AuthenticationSuccessHandler oAuth2SuccessHandler;
+    private final AuthenticationFailureHandler authenticationFailureHandler;
 
     @Bean
     public SecurityFilterChain securityFilterChain(HttpSecurity http) throws Exception {
@@ -130,16 +131,7 @@ public class SecurityConfig {
                 )
                 .userInfoEndpoint(userInfo -> userInfo.oidcUserService(customOAuth2UserService))
                 .successHandler(oAuth2SuccessHandler)
-                .failureHandler((request, response, exception) -> {
-                    log.error("OAUTH2_FAILURE — {}", exception.getMessage());
-                    response.setContentType("application/json");
-                    response.setCharacterEncoding("UTF-8");
-                    response.setStatus(HttpServletResponse.SC_UNAUTHORIZED);
-                    response.getWriter().write(
-                        "{\"status\":false,\"message\":\"OAuth2 authentication failed\",\"statusCode\":401,\"timestamp\":\"" + java.time.Instant.now() + "\"}"
-                    );
-                    response.getWriter().flush();
-                })
+                .failureHandler(authenticationFailureHandler)
             )
 
             // ── Authentication provider ───────────────────────────────────

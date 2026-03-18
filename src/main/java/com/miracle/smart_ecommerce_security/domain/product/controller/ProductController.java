@@ -35,7 +35,7 @@ public class ProductController {
     }
 
     @PostMapping
-    @PreAuthorize("hasAnyRole('ADMIN', 'STAFF')")
+    @PreAuthorize("hasRole('ADMIN')")
     @Operation(summary = "Create a new product", description = "Creates a new product")
     @ApiResponses(value = {
             @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "201", description = "Product created successfully"),
@@ -109,7 +109,7 @@ public class ProductController {
     }
 
     @PutMapping("/{id}")
-    @PreAuthorize("hasAnyRole('ADMIN', 'STAFF')")
+    @PreAuthorize("hasRole('ADMIN')")
     @Operation(summary = "Update product", description = "Updates an existing product")
     public ResponseEntity<ApiResponse<ProductResponse>> updateProduct(
             @Parameter(description = "Product ID") @PathVariable UUID id,
@@ -128,7 +128,7 @@ public class ProductController {
     }
 
     @PostMapping("/{id}/activate")
-    @PreAuthorize("hasAnyRole('ADMIN', 'STAFF')")
+    @PreAuthorize("hasRole('ADMIN')")
     @Operation(summary = "Activate product", description = "Activates a product")
     public ResponseEntity<ApiResponse<Void>> activateProduct(
             @Parameter(description = "Product ID") @PathVariable UUID id) {
@@ -137,7 +137,7 @@ public class ProductController {
     }
 
     @PostMapping("/{id}/deactivate")
-    @PreAuthorize("hasAnyRole('ADMIN', 'STAFF')")
+    @PreAuthorize("hasRole('ADMIN')")
     @Operation(summary = "Deactivate product", description = "Deactivates a product")
     public ResponseEntity<ApiResponse<Void>> deactivateProduct(
             @Parameter(description = "Product ID") @PathVariable UUID id) {
@@ -146,7 +146,7 @@ public class ProductController {
     }
 
     @PatchMapping("/{id}/stock")
-    @PreAuthorize("hasAnyRole('ADMIN', 'STAFF')")
+    @PreAuthorize("hasRole('ADMIN')")
     @Operation(summary = "Update stock", description = "Updates product stock quantity")
     public ResponseEntity<ApiResponse<Void>> updateStock(
             @Parameter(description = "Product ID") @PathVariable UUID id,

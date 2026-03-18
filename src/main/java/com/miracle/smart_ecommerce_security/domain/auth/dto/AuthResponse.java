@@ -16,7 +16,7 @@ public class AuthResponse {
     @Schema(description = "Authenticated user's internal ID", example = "1c6627ae-6bff-4916-ae2d-82be59629e2c")
     private UUID userId;
 
-    @Schema(description = "User's role", example = "CUSTOMER", allowableValues = {"ADMIN", "STAFF", "CUSTOMER"})
+    @Schema(description = "User's role", example = "CUSTOMER", allowableValues = {"ADMIN", "CUSTOMER"})
     private String role;
 
     @Schema(description = "Signed JWT — include as: Authorization: Bearer <token>")

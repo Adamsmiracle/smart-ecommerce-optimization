@@ -7,8 +7,6 @@ import jakarta.servlet.FilterChain;
 import jakarta.servlet.ServletException;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
-import lombok.AllArgsConstructor;
-import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.slf4j.MDC;
 import org.springframework.http.MediaType;
@@ -16,7 +14,6 @@ import org.springframework.security.authentication.UsernamePasswordAuthenticatio
 import org.springframework.security.core.authority.SimpleGrantedAuthority;
 import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.security.web.authentication.WebAuthenticationDetailsSource;
-import org.springframework.stereotype.Component;
 import org.springframework.web.filter.OncePerRequestFilter;
 
 import java.io.IOException;
@@ -43,7 +40,6 @@ import java.util.Optional;
  * double-registration by the servlet container.
  */
 @Slf4j
-@Component
 public class JwtAuthenticationFilter extends OncePerRequestFilter {
 
     private final TokenService tokenService;
@@ -81,7 +77,8 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
         if (principal.isPresent()) {
             // ── Valid token — authenticate the request ──────────────────────
             TokenService.AuthPrincipal auth = principal.get();
-            String role = auth.role;
+            String role = auth.role();
+            String jti = auth.jti();
 
             String grantedRole = role.toUpperCase().startsWith("ROLE_")
                     ? role.toUpperCase()
@@ -89,20 +86,20 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
 
             UsernamePasswordAuthenticationToken authentication =
                     new UsernamePasswordAuthenticationToken(
-                            auth.userId.toString(),
+                            auth.userId().toString(),
                             null,
                             List.of(new SimpleGrantedAuthority(grantedRole))
                     );
             authentication.setDetails(new WebAuthenticationDetailsSource().buildDetails(request));
             SecurityContextHolder.getContext().setAuthentication(authentication);
 
-            MDC.put("userId", auth.userId.toString());
+            MDC.put("userId", auth.userId().toString());
             MDC.put("userRole", role);
 
-            tokenActivityService.logTokenValidation(token, auth.userId.toString(), role, clientIp, userAgent);
+            tokenActivityService.logTokenValidation(jti, auth.userId().toString(), role, clientIp, userAgent);
 
             log.debug("JWT_AUTH_SUCCESS — {} {} — UserId: {} — Role: {} — IP: {}",
-                    request.getMethod(), request.getRequestURI(), auth.userId, role, clientIp);
+                    request.getMethod(), request.getRequestURI(), auth.userId(), role, clientIp);
 
             try {
                 filterChain.doFilter(request, response);
@@ -112,10 +109,11 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
             }
 
         } else {
-            tokenActivityService.logTokenValidationFailure(token, "Invalid/expired/tampered JWT",
+            // Extract JTI for logging if possible
+            String jti = tokenService.extractJti(token).orElse(null);
+            tokenActivityService.logTokenValidationFailure(jti, "Invalid/expired/tampered JWT",
                     clientIp, userAgent);
 
-//            Call filterchain.doFilter
             log.warn("JWT_AUTH_FAILED — {} {} — Rejected invalid/expired token — IP: {} — CID: {}",
                     request.getMethod(), request.getRequestURI(), clientIp, MDC.get("correlationId"));
 

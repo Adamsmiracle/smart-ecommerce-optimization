@@ -177,10 +177,20 @@ public class AuthController {
             String token = header.substring(7);
             Optional<String> jti = jwtTokenService.extractJti(token);
             if (jti.isPresent()) {
-                tokenBlacklistService.blacklist(jti.get(), Instant.now().plusMillis(86_400_000));
-                tokenActivityService.logTokenRevocation(token, "User logout", getClientIp(httpRequest));
-                log.info("AUTH_LOGOUT — JTI: {} — IP: {} — CID: {}",
-                        jti.get(), getClientIp(httpRequest), MDC.get("correlationId"));
+                // Extract token details for logging
+                JwtTokenService.TokenIntrospection introspection = jwtTokenService.introspect(token);
+                Instant tokenExpiry = introspection.expiresAt() != null ? 
+                    introspection.expiresAt() : Instant.now().plusMillis(86_400_000);
+                
+                tokenBlacklistService.blacklist(jti.get(), tokenExpiry);
+                tokenActivityService.logTokenRevocation(
+                    jti.get(), 
+                    introspection.subject(), 
+                    "User logout", 
+                    getClientIp(httpRequest)
+                );
+                log.info("AUTH_LOGOUT — JTI: {} — UserId: {} — IP: {} — CID: {}",
+                        jti.get(), introspection.subject(), getClientIp(httpRequest), MDC.get("correlationId"));
             }
         }
         return ResponseEntity.ok(ApiResponse.success("Logged out successfully"));

@@ -26,7 +26,7 @@ import java.util.UUID;
 @RestController
 @RequestMapping("/api/users")
 @Tag(name = "Users", description = "User management APIs")
-@PreAuthorize("hasAnyRole('ADMIN', 'STAFF', 'CUSTOMER')")
+@PreAuthorize("hasAnyRole('ADMIN', 'CUSTOMER')")
 public class UserController {
 
     private final UserService userService;
@@ -42,7 +42,7 @@ public class UserController {
             @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "400", description = "Invalid input"),
             @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "409", description = "Email already exists")
     })
-    @PreAuthorize("hasAnyRole('ADMIN', 'CUSTOMER')")
+    @PreAuthorize("hasRole('ADMIN')")
     public ResponseEntity<ApiResponse<UserResponse>> createUser(@Valid @RequestBody CreateUserRequest request) {
         UserResponse user = userService.createUser(request);
         return ResponseEntity.status(HttpStatus.CREATED)
@@ -55,7 +55,7 @@ public class UserController {
             @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "200", description = "User found"),
             @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "404", description = "User not found")
     })
-    @PreAuthorize("hasAnyRole('ADMIN', 'STAFF', 'CUSTOMER')")
+    @PreAuthorize("hasRole('ADMIN') or (hasRole('CUSTOMER') and #id.toString() == authentication.name)")
     public ResponseEntity<ApiResponse<UserResponse>> getUserById(
             @Parameter(description = "User ID") @PathVariable UUID id) {
         UserResponse user = userService.getUserById(id);
@@ -64,7 +64,7 @@ public class UserController {
 
     @GetMapping("/email/{email}")
     @Operation(summary = "Get user by email", description = "Retrieves a user by their email address")
-    @PreAuthorize("hasAnyRole('ADMIN', 'STAFF', 'CUSTOMER')")
+    @PreAuthorize("hasRole('ADMIN')")
     public ResponseEntity<ApiResponse<UserResponse>> getUserByEmail(
             @Parameter(description = "User email") @PathVariable String email) {
         UserResponse user = userService.getUserByEmail(email);
@@ -73,7 +73,7 @@ public class UserController {
 
     @GetMapping
     @Operation(summary = "Get all users", description = "Retrieves all users with pagination")
-    @PreAuthorize("hasAnyRole('ADMIN', 'STAFF')")
+    @PreAuthorize("hasRole('ADMIN')")
     public ResponseEntity<ApiResponse<Page<UserResponse>>> getAllUsers(
             @PageableDefault Pageable pageable) {
         Page<UserResponse> users = userService.getAllUsers(pageable);
@@ -82,7 +82,7 @@ public class UserController {
 
     @GetMapping("/search")
     @Operation(summary = "Search users", description = "Search users by keyword (name or email)")
-    @PreAuthorize("hasAnyRole('ADMIN', 'STAFF')")
+    @PreAuthorize("hasRole('ADMIN')")
     public ResponseEntity<ApiResponse<Page<UserResponse>>> searchUsers(
             @Parameter(description = "Search keyword") @RequestParam String keyword,
             @PageableDefault Pageable pageable) {
@@ -92,7 +92,7 @@ public class UserController {
 
     @PutMapping("/{id}")
     @Operation(summary = "Update user", description = "Updates an existing user")
-    @PreAuthorize("hasAnyRole('ADMIN', 'CUSTOMER')")
+    @PreAuthorize("hasRole('ADMIN') or (hasRole('CUSTOMER') and #id.toString() == authentication.name)")
     public ResponseEntity<ApiResponse<UserResponse>> updateUser(
             @Parameter(description = "User ID") @PathVariable UUID id,
             @Valid @RequestBody UpdateUserRequest request) {

@@ -6,7 +6,6 @@ import com.miracle.smart_ecommerce_security.domain.auth.service.TokenActivitySer
 import com.miracle.smart_ecommerce_security.domain.auth.service.TokenService;
 import io.jsonwebtoken.*;
 import io.jsonwebtoken.security.Keys;
-import jdk.jfr.Registered;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.slf4j.MDC;
@@ -26,7 +25,7 @@ import java.util.UUID;
  * <p>Token claims:</p>
  * <ul>
  *   <li>{@code sub}  — userId (UUID string)</li>
- *   <li>{@code role} — user role (ADMIN, STAFF, CUSTOMER)</li>
+ *   <li>{@code role} — user role (ADMIN, CUSTOMER)</li>
  *   <li>{@code type} — "access" or "refresh"</li>
  *   <li>{@code iat}  — issued-at timestamp</li>
  *   <li>{@code exp}  — expiration timestamp</li>
@@ -245,10 +244,11 @@ public class JwtTokenService implements TokenService {
             }
 
             UUID userId = UUID.fromString(userIdStr);
-            log.info("JWT_VALIDATION_SUCCESS — UserId: {} — Role: {} — JTI: {} — CID: {}",
+            // Log at DEBUG level since validation happens on every authenticated request
+            log.debug("JWT_VALIDATION_SUCCESS — UserId: {} — Role: {} — JTI: {} — CID: {}",
                     userId, role, jti, MDC.get("correlationId"));
 
-            return Optional.of(new AuthPrincipal(userId, role));
+            return Optional.of(new AuthPrincipal(userId, role, jti));
 
         } catch (ExpiredJwtException ex) {
             log.warn("JWT_VALIDATION_FAILED — Token expired — Sub: {} — CID: {}",

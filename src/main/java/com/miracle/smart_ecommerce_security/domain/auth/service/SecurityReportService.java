@@ -16,8 +16,11 @@ import java.util.List;
  * <ul>
  *   <li>{@link SecurityEventListener} — auth success/failure/denied counters and recent events</li>
  *   <li>{@link TokenBlacklistService} — count of blacklisted (revoked) tokens</li>
- *   <li>{@link TokenActivityService} — active token count and total validations</li>
  * </ul>
+ *
+ * <p>Note: Active token tracking was removed as JWT tokens are stateless by design -
+ * the token itself is the source of truth. Token validity is determined by cryptographic
+ * signature verification and expiry, not by server-side state.</p>
  *
  * <p><b>DSA note:</b> All data sources use thread-safe structures (AtomicLong, ConcurrentHashMap,
  * ConcurrentLinkedDeque) so this service can safely aggregate without locks.</p>
@@ -29,15 +32,12 @@ public class SecurityReportService {
 
     private final SecurityEventListener securityEventListener;
     private final TokenBlacklistService tokenBlacklistService;
-    private final TokenActivityService tokenActivityService;
 
     /**
      * Build a comprehensive security report for admin review.
      */
     public SecurityReport generateReport() {
         log.info("SECURITY_REPORT — Generating admin security report");
-
-        TokenActivityService.TokenUsageStats tokenStats = tokenActivityService.getTokenUsageStats();
 
         return new SecurityReport(
                 Instant.now(),
@@ -47,8 +47,6 @@ public class SecurityReportService {
                         securityEventListener.getDeniedCount()
                 ),
                 new TokenStats(
-                        tokenStats.getTotalActiveTokens(),
-                        tokenStats.getTotalValidations(),
                         tokenBlacklistService.size()
                 ),
                 securityEventListener.getRecentEvents()
@@ -71,8 +69,6 @@ public class SecurityReportService {
     ) {}
 
     public record TokenStats(
-            int activeTokens,
-            long totalValidations,
             int blacklistedTokens
     ) {}
 }

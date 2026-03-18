@@ -22,7 +22,7 @@ import java.util.UUID;
  */
 @RestController
 @RequestMapping("/api/cart")
-@PreAuthorize("hasAnyRole('ADMIN', 'STAFF', 'CUSTOMER')")
+@PreAuthorize("hasAnyRole('ADMIN', 'CUSTOMER')")
 @Tag(name = "Cart", description = "Shopping cart management APIs")
 public class CartController {
 
@@ -33,7 +33,7 @@ public class CartController {
     }
 
     @GetMapping
-    @PreAuthorize("hasAnyRole('ADMIN', 'STAFF')")
+    @PreAuthorize("hasRole('ADMIN')")
     @Operation(summary = "Get all carts", description = "Retrieves all shopping carts with pagination (Admin)")
     public ResponseEntity<ApiResponse<Page<CartResponse>>> getAllCarts(
             @PageableDefault(size = 10) Pageable pageable) {

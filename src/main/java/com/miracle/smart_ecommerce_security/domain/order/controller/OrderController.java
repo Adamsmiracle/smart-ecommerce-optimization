@@ -28,7 +28,7 @@ import java.util.UUID;
 @RestController
 @RequestMapping("/api/orders")
 @Tag(name = "Orders", description = "Order management APIs")
-@PreAuthorize("hasAnyRole('ADMIN', 'STAFF', 'CUSTOMER')")
+@PreAuthorize("hasAnyRole('ADMIN', 'CUSTOMER')")
 public class OrderController {
 
     private final OrderService orderService;
@@ -78,7 +78,7 @@ public class OrderController {
     }
 
     @GetMapping
-    @PreAuthorize("hasAnyRole('ADMIN', 'STAFF')")
+    @PreAuthorize("hasRole('ADMIN')")
     @Operation(summary = "Get all orders", description = "Retrieves all orders with pagination (Admin)")
     public ResponseEntity<ApiResponse<Page<OrderResponse>>> getAllOrders(
             @PageableDefault(size = 10) Pageable pageable) {
@@ -96,7 +96,7 @@ public class OrderController {
     }
 
     @GetMapping("/status/{status}")
-    @PreAuthorize("hasAnyRole('ADMIN', 'STAFF')")
+    @PreAuthorize("hasRole('ADMIN')")
     @Operation(summary = "Get orders by status", description = "Retrieves orders filtered by status")
     public ResponseEntity<ApiResponse<Page<OrderResponse>>> getOrdersByStatus(
             @Parameter(description = "Order status (pending, confirmed, processing, shipped, delivered, cancelled)")
@@ -107,7 +107,7 @@ public class OrderController {
     }
 
     @PatchMapping("/{id}/status")
-    @PreAuthorize("hasAnyRole('ADMIN', 'STAFF')")
+    @PreAuthorize("hasRole('ADMIN')")
     @Operation(summary = "Update order status", description = "Updates the status of an order (Admin)")
     public ResponseEntity<ApiResponse<OrderResponse>> updateOrderStatus(
             @Parameter(description = "Order ID") @PathVariable UUID id,
@@ -117,7 +117,7 @@ public class OrderController {
     }
 
     @PatchMapping("/{id}/payment-status")
-    @PreAuthorize("hasAnyRole('ADMIN', 'STAFF')")
+    @PreAuthorize("hasRole('ADMIN')")
     @Operation(summary = "Update payment status", description = "Updates the payment status of an order")
     public ResponseEntity<ApiResponse<OrderResponse>> updatePaymentStatus(
             @Parameter(description = "Order ID") @PathVariable UUID id,
@@ -149,7 +149,7 @@ public class OrderController {
     }
 
     @GetMapping("/count")
-    @PreAuthorize("hasAnyRole('ADMIN', 'STAFF')")
+    @PreAuthorize("hasRole('ADMIN')")
     @Operation(summary = "Get total order count", description = "Returns the total number of orders")
     public ResponseEntity<ApiResponse<Long>> getOrderCount() {
         long count = orderService.countOrders();
@@ -157,7 +157,7 @@ public class OrderController {
     }
 
     @GetMapping("/count/status/{status}")
-    @PreAuthorize("hasAnyRole('ADMIN', 'STAFF')")
+    @PreAuthorize("hasRole('ADMIN')")
     @Operation(summary = "Get order count by status", description = "Returns the number of orders with a specific status")
     public ResponseEntity<ApiResponse<Long>> getOrderCountByStatus(
             @Parameter(description = "Order status") @PathVariable String status) {
@@ -166,7 +166,7 @@ public class OrderController {
     }
 
     @PutMapping("/{id}")
-    @PreAuthorize("hasAnyRole('ADMIN', 'STAFF')")
+    @PreAuthorize("hasRole('ADMIN')")
     @Operation(summary = "Update order", description = "Update editable top-level order fields")
     public ResponseEntity<ApiResponse<OrderResponse>> updateOrder(
             @Parameter(description = "Order ID") @PathVariable UUID id,
