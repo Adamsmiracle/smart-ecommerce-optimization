@@ -57,12 +57,6 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
                                     FilterChain filterChain) throws ServletException, IOException {
 
         String header = request.getHeader("Authorization");
-
-        log.debug("JWT_FILTER — {} {} — Authorization header: {}",
-                request.getMethod(), request.getRequestURI(),
-                header != null ? (header.startsWith("Bearer ") ? "Bearer [present]" : "present but not Bearer") : "MISSING");
-
-        // No Authorization header — continue as anonymous request
         if (header == null || !header.startsWith("Bearer")) {
             filterChain.doFilter(request, response);
             return;
@@ -75,7 +69,6 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
         Optional<TokenService.AuthPrincipal> principal = tokenService.validateToken(token);
 
         if (principal.isPresent()) {
-            // ── Valid token — authenticate the request ──────────────────────
             TokenService.AuthPrincipal auth = principal.get();
             String role = auth.role();
             String jti = auth.jti();
@@ -98,8 +91,7 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
 
             tokenActivityService.logTokenValidation(jti, auth.userId().toString(), role, clientIp, userAgent);
 
-            log.debug("JWT_AUTH_SUCCESS — {} {} — UserId: {} — Role: {} — IP: {}",
-                    request.getMethod(), request.getRequestURI(), auth.userId(), role, clientIp);
+
 
             try {
                 filterChain.doFilter(request, response);

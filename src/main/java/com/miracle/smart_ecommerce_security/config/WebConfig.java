@@ -1,14 +1,20 @@
 package com.miracle.smart_ecommerce_security.config;
 
+import lombok.AllArgsConstructor;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.web.servlet.config.annotation.CorsRegistry;
+import org.springframework.web.servlet.config.annotation.InterceptorRegistry;
 import org.springframework.web.servlet.config.annotation.WebMvcConfigurer;
+
 
 /**
  * Web MVC configuration including CORS settings.
  */
 @Configuration
+@AllArgsConstructor
 public class WebConfig implements WebMvcConfigurer {
+
+    private final PerformanceInterceptor performanceInterceptor;
 
     @Override
     public void addCorsMappings(CorsRegistry registry) {
@@ -27,5 +33,13 @@ public class WebConfig implements WebMvcConfigurer {
                 .allowCredentials(true)
                 .maxAge(3600);
     }
+
+
+    @Override
+    public void addInterceptors(InterceptorRegistry registry) {
+        registry.addInterceptor(performanceInterceptor)
+                .addPathPatterns("/api/**");
+    }
+
 }
 

@@ -90,22 +90,20 @@ public class SecurityConfig {
             .cors(cors -> cors.configurationSource(corsConfigurationSource()))
             .sessionManagement(session -> session.sessionCreationPolicy(SessionCreationPolicy.IF_REQUIRED))
 
-            // ── Endpoint authorization rules ──────────────────────────────
             .authorizeHttpRequests(auth -> auth
                 .requestMatchers("/api/auth/**").permitAll()
                 .requestMatchers("/api/auth/token/inspect").permitAll()
                 .requestMatchers(HttpMethod.GET, "/api/products/**").permitAll()
                 .requestMatchers(HttpMethod.GET, "/api/categories/**").permitAll()
 
-                // Swagger / OpenAPI docs
                 .requestMatchers("/swagger-ui/**", "/swagger-ui.html", "/v3/api-docs/**").permitAll()
 
 
                 .requestMatchers("/graphiql/**", "/graphiql").permitAll()
                 .requestMatchers("/graphql").permitAll()
                 .requestMatchers("/actuator/health", "/actuator/info").permitAll()
+                .requestMatchers("/actuator/**").hasRole("ADMIN")
 
-                // Home / root and error page
                 .requestMatchers("/", "/error").permitAll()
 
                 // OAuth2 login endpoints
@@ -119,7 +117,6 @@ public class SecurityConfig {
                 .anyRequest().authenticated()
             )
 
-            // ── JWT filter ────────────────────────────────────────────────
             .addFilterBefore(jwtAuthenticationFilter(), UsernamePasswordAuthenticationFilter.class)
 
             .oauth2Login(oauth2 -> oauth2
@@ -134,10 +131,7 @@ public class SecurityConfig {
                 .failureHandler(authenticationFailureHandler)
             )
 
-            // ── Authentication provider ───────────────────────────────────
             .authenticationProvider(daoAuthenticationProvider())
-
-            // ── Exception handling ────────────────────────────────────────
             .exceptionHandling(ex -> ex
                 .authenticationEntryPoint((request, response, authException) -> {
                     response.setContentType("application/json");
@@ -162,18 +156,12 @@ public class SecurityConfig {
         return http.build();
     }
 
-    /**
-     * JWT authentication filter — instantiated manually (not a @Component)
-     * to avoid double-registration by the servlet container.
-     */
     @Bean
     public JwtAuthenticationFilter jwtAuthenticationFilter() {
         return new JwtAuthenticationFilter(tokenService, tokenActivityService);
     }
 
-    /**
-     * DAO authentication provider backed by UserDetailsService + BCrypt.
-     */
+
     @Bean
     public DaoAuthenticationProvider daoAuthenticationProvider() {
         DaoAuthenticationProvider provider = new DaoAuthenticationProvider();
@@ -190,15 +178,6 @@ public class SecurityConfig {
         return config.getAuthenticationManager();
     }
 
-    /**
-     * Consolidated CORS configuration.
-     *
-     * <p>Allows specific origins for frontend apps, Postman, and JavaFX clients.
-     * Unauthorized origins are rejected by the browser (preflight fails).</p>
-     *
-     * <p>To test rejection: send a request from an origin not in the list
-     * (e.g., {@code http://evil.com}) — the browser will block the response.</p>
-     */
     @Bean
     public CorsConfigurationSource corsConfigurationSource() {
         CorsConfiguration config = new CorsConfiguration();

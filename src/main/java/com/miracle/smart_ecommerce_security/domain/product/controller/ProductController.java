@@ -19,6 +19,8 @@ import org.springframework.web.bind.annotation.*;
 
 import java.math.BigDecimal;
 import java.util.UUID;
+import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.Executor;
 
 /**
  * REST Controller for Product management.
@@ -29,9 +31,11 @@ import java.util.UUID;
 public class ProductController {
 
     private final ProductService productService;
+    private final Executor taskExecutor;
 
-    public ProductController(ProductService productService) {
+    public ProductController(ProductService productService, @org.springframework.beans.factory.annotation.Qualifier("taskExecutor") Executor taskExecutor) {
         this.productService = productService;
+        this.taskExecutor = taskExecutor;
     }
 
     @PostMapping
@@ -58,18 +62,22 @@ public class ProductController {
 
     @GetMapping
     @Operation(summary = "Get all products", description = "Retrieves all products with pagination")
-    public ResponseEntity<ApiResponse<Page<ProductResponse>>> getAllProducts(
+    public CompletableFuture<ResponseEntity<ApiResponse<Page<ProductResponse>>>> getAllProducts(
             @PageableDefault(size = 10) Pageable pageable) {
-        Page<ProductResponse> products = productService.getAllProducts(pageable);
-        return ResponseEntity.ok(ApiResponse.success(products));
+        return CompletableFuture.supplyAsync(() -> {
+            Page<ProductResponse> products = productService.getAllProducts(pageable);
+            return ResponseEntity.ok(ApiResponse.success(products));
+        }, taskExecutor);
     }
 
     @GetMapping("/active")
     @Operation(summary = "Get active products", description = "Retrieves active products with pagination")
-    public ResponseEntity<ApiResponse<Page<ProductResponse>>> getActiveProducts(
+    public CompletableFuture<ResponseEntity<ApiResponse<Page<ProductResponse>>>> getActiveProducts(
             @PageableDefault(size = 10) Pageable pageable) {
-        Page<ProductResponse> products = productService.getActiveProducts(pageable);
-        return ResponseEntity.ok(ApiResponse.success(products));
+        return CompletableFuture.supplyAsync(() -> {
+            Page<ProductResponse> products = productService.getActiveProducts(pageable);
+            return ResponseEntity.ok(ApiResponse.success(products));
+        }, taskExecutor);
     }
 
     @GetMapping("/category/{categoryId}")
@@ -148,10 +156,12 @@ public class ProductController {
     @PatchMapping("/{id}/stock")
     @PreAuthorize("hasRole('ADMIN')")
     @Operation(summary = "Update stock", description = "Updates product stock quantity")
-    public ResponseEntity<ApiResponse<Void>> updateStock(
+    public CompletableFuture<ResponseEntity<ApiResponse<Void>>> updateStock(
             @Parameter(description = "Product ID") @PathVariable UUID id,
             @Parameter(description = "Quantity to add (negative to reduce)") @RequestParam int quantity) {
-        productService.updateStock(id, quantity);
-        return ResponseEntity.ok(ApiResponse.success("Stock updated successfully"));
+        return CompletableFuture.supplyAsync(() -> {
+            productService.updateStock(id, quantity);
+            return ResponseEntity.ok(ApiResponse.success("Stock updated successfully"));
+        }, taskExecutor);
     }
 }
