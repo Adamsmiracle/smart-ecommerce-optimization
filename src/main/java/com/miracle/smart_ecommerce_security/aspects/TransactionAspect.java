@@ -9,13 +9,16 @@ import org.springframework.stereotype.Component;
 import org.springframework.transaction.annotation.Transactional;
 
 /**
- * Aspect for monitoring transactional operations.
- * Logs transaction boundaries and rollbacks.
+ * Aspect for monitoring transactional operations - OPTIMIZED.
+ * Only logs slow transactions and errors to reduce overhead.
  */
 @Aspect
 @Component
 @Slf4j
 public class TransactionAspect {
+
+    private static final long SLOW_TRANSACTION_MS = 1000;
+    private static final boolean DETAILED_LOGGING = false;
 
     /**
      * Pointcut for methods annotated with @Transactional
@@ -24,29 +27,29 @@ public class TransactionAspect {
     public void transactionalMethods() {}
 
     /**
-     * Monitor transactional method execution
+     * Monitor transactional method execution - OPTIMIZED
      */
     @Around("transactionalMethods() && @annotation(transactional)")
     public Object monitorTransaction(ProceedingJoinPoint joinPoint, Transactional transactional) throws Throwable {
-        String methodName = joinPoint.getSignature().toShortString();
-        boolean readOnly = transactional.readOnly();
         long startTime = System.currentTimeMillis();
-
-        log.debug("TRANSACTION START - Method: {} | ReadOnly: {}", methodName, readOnly);
 
         try {
             Object result = joinPoint.proceed();
             long executionTime = System.currentTimeMillis() - startTime;
 
-            log.debug("TRANSACTION COMMIT - Method: {} | Duration: {} ms", methodName, executionTime);
-
-            if (executionTime > 1000) {
+            // Only log slow transactions
+            if (executionTime > SLOW_TRANSACTION_MS) {
+                String methodName = joinPoint.getSignature().toShortString();
                 log.warn("LONG TRANSACTION - Method {} took {} ms", methodName, executionTime);
+            } else if (DETAILED_LOGGING) {
+                String methodName = joinPoint.getSignature().toShortString();
+                log.debug("TRANSACTION COMMIT - Method: {} | Duration: {} ms", methodName, executionTime);
             }
 
             return result;
         } catch (Throwable throwable) {
             long executionTime = System.currentTimeMillis() - startTime;
+            String methodName = joinPoint.getSignature().toShortString();
             log.error("TRANSACTION ROLLBACK - Method: {} | Duration: {} ms | Reason: {}",
                      methodName, executionTime, throwable.getMessage());
             throw throwable;

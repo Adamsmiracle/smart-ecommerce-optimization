@@ -9,8 +9,8 @@ import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Component;
 
 /**
- * Lightweight performance monitor specifically for JWT token operations.
- * Uses minimal overhead logging to avoid interfering with token validation performance.
+ * Lightweight performance monitor for JWT token operations - DISABLED.
+ * Use PerformanceAspect instead to avoid duplicate monitoring.
  */
 @Aspect
 @Component
@@ -18,6 +18,7 @@ public class JwtPerformanceAspect {
 
     private static final Logger log = LoggerFactory.getLogger(JwtPerformanceAspect.class);
     private static final long SLOW_JWT_THRESHOLD_MS = 100;
+    private static final boolean ENABLED = false; // Disabled - use PerformanceAspect instead
 
     /**
      * Monitor only the validateToken method for performance issues
@@ -27,6 +28,10 @@ public class JwtPerformanceAspect {
 
     @Around("validateTokenMethod()")
     public Object monitorJwtValidation(ProceedingJoinPoint joinPoint) throws Throwable {
+        if (!ENABLED) {
+            return joinPoint.proceed();
+        }
+        
         long startTime = System.nanoTime();
         
         try {
