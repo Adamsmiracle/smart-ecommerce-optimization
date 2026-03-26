@@ -24,8 +24,9 @@ public class PerformanceAspect {
 
     /**
      * Pointcut for all service layer methods (matches project package)
+     * Excludes TokenActivityService to avoid measuring async logging overhead
      */
-    @Pointcut("within(com.miracle.smart_ecommerce_security..service..*)")
+    @Pointcut("within(com.miracle.smart_ecommerce_security..service..*) && !within(com.miracle.smart_ecommerce_security.domain.auth.service.TokenActivityService)")
     public void serviceLayerMethods() {}
 
     /**

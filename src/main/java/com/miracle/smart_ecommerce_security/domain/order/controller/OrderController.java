@@ -84,14 +84,11 @@ public class OrderController {
     }
 
     @GetMapping
-    @PreAuthorize("hasRole('ADMIN')")
-    @Operation(summary = "Get all orders", description = "Retrieves all orders with pagination (Admin)")
-    public CompletableFuture<ResponseEntity<ApiResponse<Page<OrderResponse>>>> getAllOrders(
+    @Operation(summary = "Get all orders", description = "Retrieves all orders with pagination")
+    public ResponseEntity<ApiResponse<Page<OrderResponse>>> getAllOrders(
             @PageableDefault(size = 10) Pageable pageable) {
-        return CompletableFuture.supplyAsync(() -> {
-            Page<OrderResponse> orders = orderService.getAllOrders(pageable);
-            return ResponseEntity.ok(ApiResponse.success(orders));
-        }, taskExecutor);
+        Page<OrderResponse> orders = orderService.getAllOrders(pageable);
+        return ResponseEntity.ok(ApiResponse.success(orders));
     }
 
     @GetMapping("/user/{userId}")

@@ -1,0 +1,260 @@
+{
+	"info": {
+		"name": "Smart E-Commerce - Stress Testing",
+		"description": "Collection for stress testing optimized endpoints with token caching",
+		"schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+	},
+	"auth": {
+		"type": "bearer",
+		"bearer": [
+			{
+				"key": "token",
+				"value": "{{jwt_token}}",
+				"type": "string"
+			}
+		]
+	},
+	"variable": [
+		{
+			"key": "base_url",
+			"value": "http://localhost:8080",
+			"type": "string"
+		},
+		{
+			"key": "jwt_token",
+			"value": "",
+			"type": "string"
+		},
+		{
+			"key": "user_id",
+			"value": "550e8400-e29b-41d4-a716-446655440000",
+			"type": "string"
+		},
+		{
+			"key": "product_id_1",
+			"value": "650e8400-e29b-41d4-a716-446655440001",
+			"type": "string"
+		},
+		{
+			"key": "product_id_2",
+			"value": "650e8400-e29b-41d4-a716-446655440002",
+			"type": "string"
+		},
+		{
+			"key": "order_id",
+			"value": "750e8400-e29b-41d4-a716-446655440003",
+			"type": "string"
+		}
+	],
+	"item": [
+		{
+			"name": "0. Setup - Login",
+			"event": [
+				{
+					"listen": "test",
+					"script": {
+						"exec": [
+							"if (pm.response.code === 200) {",
+							"    var jsonData = pm.response.json();",
+							"    if (jsonData.data && jsonData.data.token) {",
+							"        pm.collectionVariables.set('jwt_token', jsonData.data.token);",
+							"        console.log('JWT Token saved:', jsonData.data.token);",
+							"    }",
+							"}"
+						],
+						"type": "text/javascript"
+					}
+				}
+			],
+			"request": {
+				"auth": {
+					"type": "noauth"
+				},
+				"method": "POST",
+				"header": [
+					{
+						"key": "Content-Type",
+						"value": "application/json"
+					}
+				],
+				"body": {
+					"mode": "raw",
+					"raw": "{\n  \"email\": \"admin@example.com\",\n  \"password\": \"Admin@123\"\n}"
+				},
+				"url": {
+					"raw": "{{base_url}}/api/auth/login",
+					"host": ["{{base_url}}"],
+					"path": ["api", "auth", "login"]
+				},
+				"description": "Login to get JWT token. Token is automatically saved to collection variable."
+			},
+			"response": []
+		},
+		{
+			"name": "1. GET Products (Read-Heavy)",
+			"request": {
+				"method": "GET",
+				"header": [
+					{
+						"key": "Accept",
+						"value": "application/json"
+					}
+				],
+				"url": {
+					"raw": "{{base_url}}/api/products?page=0&size=20&sort=createdAt,desc",
+					"host": ["{{base_url}}"],
+					"path": ["api", "products"],
+					"query": [
+						{
+							"key": "page",
+							"value": "0",
+							"description": "Page number (0-indexed)"
+						},
+						{
+							"key": "size",
+							"value": "20",
+							"description": "Items per page"
+						},
+						{
+							"key": "sort",
+							"value": "createdAt,desc",
+							"description": "Sort by field and direction"
+						}
+					]
+				},
+				"description": "**Endpoint**: GET /api/products\n**Purpose**: Read-heavy operation with caching\n**Expected Performance**: <5ms (cached), <50ms (uncached)\n**Cache Hit Rate**: 85-95%\n\n**Test Scenarios**:\n- Vary page numbers (0-10)\n- Change size (10, 20, 50)\n- Different sort orders (createdAt, name, price)"
+			},
+			"response": []
+		},
+		{
+			"name": "2. GET Order by ID (Cached Read)",
+			"request": {
+				"method": "GET",
+				"header": [
+					{
+						"key": "Accept",
+						"value": "application/json"
+					}
+				],
+				"url": {
+					"raw": "{{base_url}}/api/orders/{{order_id}}",
+					"host": ["{{base_url}}"],
+					"path": ["api", "orders", "{{order_id}}"]
+				},
+				"description": "**Endpoint**: GET /api/orders/{id}\n**Purpose**: Single entity retrieval with caching\n**Expected Performance**: <2ms (cached), <30ms (uncached)\n**Cache Hit Rate**: 90-95%\n\n**Test Scenarios**:\n- Use same order_id repeatedly (high cache hit)\n- Rotate between 5-10 different order IDs\n- Mix with order creation to test cache eviction\n\n**Sample Order IDs**:\n- 750e8400-e29b-41d4-a716-446655440003\n- 750e8400-e29b-41d4-a716-446655440004\n- 750e8400-e29b-41d4-a716-446655440005"
+			},
+			"response": []
+		},
+		{
+			"name": "3. POST Create Order (Write-Heavy)",
+			"request": {
+				"method": "POST",
+				"header": [
+					{
+						"key": "Content-Type",
+						"value": "application/json"
+					},
+					{
+						"key": "Accept",
+						"value": "application/json"
+					}
+				],
+				"body": {
+					"mode": "raw",
+					"raw": "{\n  \"userId\": \"{{user_id}}\",\n  \"paymentMethodId\": \"850e8400-e29b-41d4-a716-446655440010\",\n  \"shippingAddressId\": \"950e8400-e29b-41d4-a716-446655440020\",\n  \"shippingMethodId\": \"a50e8400-e29b-41d4-a716-446655440030\",\n  \"customerNotes\": \"Please deliver between 9 AM - 5 PM\",\n  \"items\": [\n    {\n      \"productId\": \"{{product_id_1}}\",\n      \"quantity\": 2\n    },\n    {\n      \"productId\": \"{{product_id_2}}\",\n      \"quantity\": 1\n    }\n  ]\n}"
+				},
+				"url": {
+					"raw": "{{base_url}}/api/orders",
+					"host": ["{{base_url}}"],
+					"path": ["api", "orders"]
+				},
+				"description": "**Endpoint**: POST /api/orders\n**Purpose**: Write-heavy operation with transaction management\n**Expected Performance**: 50-150ms (includes DB writes, inventory updates)\n**Cache Impact**: Evicts order cache entries\n\n**Test Scenarios**:\n- Single item orders\n- Multi-item orders (2-5 items)\n- Large orders (10+ items)\n- Vary quantities (1-10)\n\n**Request Variations**:\n```json\n// Minimal order\n{\n  \"userId\": \"{{user_id}}\",\n  \"items\": [\n    {\"productId\": \"{{product_id_1}}\", \"quantity\": 1}\n  ]\n}\n\n// Order with notes\n{\n  \"userId\": \"{{user_id}}\",\n  \"customerNotes\": \"Gift wrap requested\",\n  \"items\": [\n    {\"productId\": \"{{product_id_1}}\", \"quantity\": 3}\n  ]\n}\n```"
+			},
+			"response": []
+		},
+		{
+			"name": "4. GET Users (Admin Query)",
+			"request": {
+				"method": "GET",
+				"header": [
+					{
+						"key": "Accept",
+						"value": "application/json"
+					}
+				],
+				"url": {
+					"raw": "{{base_url}}/api/users?page=0&size=20&sort=createdAt,desc",
+					"host": ["{{base_url}}"],
+					"path": ["api", "users"],
+					"query": [
+						{
+							"key": "page",
+							"value": "0",
+							"description": "Page number (0-indexed)"
+						},
+						{
+							"key": "size",
+							"value": "20",
+							"description": "Items per page"
+						},
+						{
+							"key": "sort",
+							"value": "createdAt,desc",
+							"description": "Sort by field and direction"
+						}
+					]
+				},
+				"description": "**Endpoint**: GET /api/users\n**Purpose**: Admin-only query with role-based access\n**Expected Performance**: <10ms (cached), <80ms (uncached)\n**Cache Hit Rate**: 80-90%\n**Requires**: ADMIN role\n\n**Test Scenarios**:\n- Different page numbers\n- Various page sizes (10, 20, 50, 100)\n- Sort by different fields (createdAt, emailAddress, lastName)\n- Filter by role (if supported)\n\n**Note**: Requires admin JWT token. Use admin credentials in login."
+			},
+			"response": []
+		},
+		{
+			"name": "5. GET Active Products",
+			"request": {
+				"method": "GET",
+				"header": [
+					{
+						"key": "Accept",
+						"value": "application/json"
+					}
+				],
+				"url": {
+					"raw": "{{base_url}}/api/products/active?page=0&size=20",
+					"host": ["{{base_url}}"],
+					"path": ["api", "products", "active"],
+					"query": [
+						{
+							"key": "page",
+							"value": "0"
+						},
+						{
+							"key": "size",
+							"value": "20"
+						}
+					]
+				},
+				"description": "**Endpoint**: GET /api/products/active\n**Purpose**: Filtered product list (active only)\n**Expected Performance**: <5ms (cached)\n**Cache Hit Rate**: 90-95%"
+			},
+			"response": []
+		},
+		{
+			"name": "6. GET Product by ID",
+			"request": {
+				"method": "GET",
+				"header": [
+					{
+						"key": "Accept",
+						"value": "application/json"
+					}
+				],
+				"url": {
+					"raw": "{{base_url}}/api/products/{{product_id_1}}",
+					"host": ["{{base_url}}"],
+					"path": ["api", "products", "{{product_id_1}}"]
+				},
+				"description": "**Endpoint**: GET /api/products/{id}\n**Purpose**: Single product retrieval\n**Expected Performance**: <2ms (cached)\n**Cache Hit Rate**: 95%+"
+			},
+			"response": []
+		}
+	]
+}

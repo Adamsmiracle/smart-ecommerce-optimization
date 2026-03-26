@@ -1,5 +1,7 @@
 package com.miracle.smart_ecommerce_security.domain.auth.service;
 
+import com.miracle.smart_ecommerce_security.domain.auth.dto.AuthPrincipal;
+
 import java.util.Optional;
 import java.util.UUID;
 
@@ -23,14 +25,5 @@ public interface TokenService {
      * Works even on expired or tampered tokens.
      */
     Optional<String> extractJti(String token);
-
-    /**
-     * Represents an authenticated principal from a valid token.
-     */
-    record AuthPrincipal(UUID userId, String role, String jti) {
-        public AuthPrincipal(UUID userId, String role) {
-            this(userId, role, null);
-        }
-    }
 }
 

@@ -13,7 +13,7 @@ public class ServiceLoggingAspect {
 
     private static final Logger log = LoggerFactory.getLogger(ServiceLoggingAspect.class);
 
-    @Pointcut("within(com.miracle.smart_ecommerce_security..service..*)")
+    @Pointcut("within(com.miracle.smart_ecommerce_security..service..*) && !within(com.miracle.smart_ecommerce_security.domain.auth.service.TokenActivityService) && !within(com.miracle.smart_ecommerce_security.domain.auth.service.impl.JwtTokenService)")
     public void serviceLayer() {}
 
     @Before("serviceLayer()")

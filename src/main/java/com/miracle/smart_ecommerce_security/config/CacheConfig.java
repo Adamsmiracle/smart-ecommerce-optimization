@@ -33,6 +33,7 @@ public class CacheConfig {
     public static final String REVIEWS_CACHE = "reviews";
     public static final String PAYMENT_METHODS_CACHE = "payment_methods";
     public static final String SHIPPING_METHODS_CACHE = "shipping_method";
+    public static final String TOKEN_CACHE = "token";
 
     @Bean
     public CacheManager cacheManager() {
@@ -47,7 +48,8 @@ public class CacheConfig {
             buildEntityCache(CART_CACHE),
             buildEntityCache(PAYMENT_METHODS_CACHE),
             buildEntityCache(REVIEWS_CACHE),
-            buildEntityCache(SHIPPING_METHODS_CACHE)
+            buildEntityCache(SHIPPING_METHODS_CACHE),
+            buildTokenCache()
         ));
 
         return cacheManager;
@@ -64,6 +66,23 @@ public class CacheConfig {
                 .maximumSize(5000)
                 .expireAfterWrite(30, TimeUnit.MINUTES)
                 .recordStats()
+                .build());
+    }
+
+    /**
+     * Build cache specifically for JWT token validation
+     * - High capacity for frequent validation requests
+     * - Short TTL (5 minutes) to balance performance with security
+     * - Tokens are re-validated from source after cache expiry
+     * - Cache is cleared when tokens are blacklisted
+     * - Optimized for high-throughput with minimal overhead
+     */
+    private CaffeineCache buildTokenCache() {
+        return new CaffeineCache(TOKEN_CACHE, Caffeine.newBuilder()
+                .maximumSize(10000)  // Higher capacity for active tokens
+                .expireAfterWrite(5, TimeUnit.MINUTES)  // Shorter TTL for security
+                .initialCapacity(1000)  // Pre-allocate for better performance
+                .recordStats()  // Enable metrics
                 .build());
     }
 }
