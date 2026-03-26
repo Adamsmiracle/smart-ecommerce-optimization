@@ -9,8 +9,8 @@ import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Component;
 
 /**
- * Aspect for performance monitoring.
- * Tracks method execution time and logs slow operations.
+ * Aspect for performance monitoring - OPTIMIZED.
+ * Only logs slow operations to reduce overhead.
  */
 @Aspect
 @Component
@@ -21,11 +21,14 @@ public class PerformanceAspect {
     // Threshold for slow operations (in milliseconds)
     private static final long SLOW_THRESHOLD_MS = 500;
     private static final long VERY_SLOW_THRESHOLD_MS = 1000;
+    private static final boolean MONITOR_CONTROLLERS = false; // Disable for production
+    private static final boolean MONITOR_REPOSITORIES = false; // Disable for production
 
     /**
      * Pointcut for all service layer methods (matches project package)
+     * Excludes TokenActivityService to avoid measuring async logging overhead
      */
-    @Pointcut("within(com.miracle.smart_ecommerce_security..service..*)")
+    @Pointcut("within(com.miracle.smart_ecommerce_security..service..*) && !within(com.miracle.smart_ecommerce_security.domain.auth.service.TokenActivityService)")
     public void serviceLayerMethods() {}
 
     /**
@@ -41,26 +44,47 @@ public class PerformanceAspect {
     public void repositoryMethods() {}
 
     /**
-     * Around advice - monitors service layer performance
+     * Around advice - monitors service layer performance (only slow operations)
      */
     @Around("serviceLayerMethods()")
     public Object monitorServicePerformance(ProceedingJoinPoint joinPoint) throws Throwable {
-        return measureAndLog(joinPoint, "Service");
+        long startTime = System.currentTimeMillis();
+        try {
+            Object result = joinPoint.proceed();
+            long executionTime = System.currentTimeMillis() - startTime;
+            
+            // Only log if slow
+            if (executionTime >= SLOW_THRESHOLD_MS) {
+                logPerformance("Service", joinPoint.getSignature().toShortString(), executionTime);
+            }
+            return result;
+        } catch (Throwable throwable) {
+            long executionTime = System.currentTimeMillis() - startTime;
+            log.error("[Service] {} failed after {} ms: {}",
+                    joinPoint.getSignature().toShortString(), executionTime, throwable.getMessage());
+            throw throwable;
+        }
     }
 
     /**
-     * Around advice - monitors controller performance
+     * Around advice - monitors controller performance (disabled by default)
      */
     @Around("controllerMethods()")
     public Object monitorControllerPerformance(ProceedingJoinPoint joinPoint) throws Throwable {
+        if (!MONITOR_CONTROLLERS) {
+            return joinPoint.proceed();
+        }
         return measureAndLog(joinPoint, "Controller");
     }
 
     /**
-     * Around advice - monitors repository performance
+     * Around advice - monitors repository performance (disabled by default)
      */
     @Around("repositoryMethods()")
     public Object monitorRepositoryPerformance(ProceedingJoinPoint joinPoint) throws Throwable {
+        if (!MONITOR_REPOSITORIES) {
+            return joinPoint.proceed();
+        }
         return measureAndLog(joinPoint, "Repository");
     }
 

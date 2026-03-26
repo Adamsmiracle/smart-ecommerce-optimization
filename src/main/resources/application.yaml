@@ -97,7 +97,8 @@ management:
   endpoints:
     web:
       exposure:
-        include: health,info,metrics,caches
+        include: "*"
+
   endpoint:
     health:
       show-details: always
@@ -108,6 +109,14 @@ management:
     metrics:
       export:
         enabled: true
+  metrics:
+    tags:
+      application: ${spring.application.name}
+    distribution:
+      percentiles-histogram:
+        http:
+          server:
+            requests: true
 
 # SpringDoc / Swagger UI Configuration
 springdoc:
@@ -159,4 +168,4 @@ spring:
   logging:
     level:
       root: ERROR
-      com.miracle.smart_ecommerce_jpa: INFO
+      com.miracle.smart_ecommerce_security: INFO

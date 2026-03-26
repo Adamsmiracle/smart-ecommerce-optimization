@@ -19,6 +19,8 @@ import org.springframework.web.bind.annotation.*;
 
 import java.math.BigDecimal;
 import java.util.UUID;
+import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.Executor;
 
 /**
  * REST Controller for Product management.
@@ -29,9 +31,11 @@ import java.util.UUID;
 public class ProductController {
 
     private final ProductService productService;
+    private final Executor taskExecutor;
 
-    public ProductController(ProductService productService) {
+    public ProductController(ProductService productService, @org.springframework.beans.factory.annotation.Qualifier("taskExecutor") Executor taskExecutor) {
         this.productService = productService;
+        this.taskExecutor = taskExecutor;
     }
 
     @PostMapping

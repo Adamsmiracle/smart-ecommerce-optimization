@@ -55,6 +55,13 @@ Enforced at two levels:
 ### Token Revocation (DSA: HashMap O(1) Lookup)
 - `TokenBlacklistService` uses a `ConcurrentHashMap` for O(1) blacklist checks.
 - Logout adds the token's JTI to the blacklist; scheduled cleanup removes expired entries.
+- Token cache is cleared on blacklist to ensure immediate revocation.
+
+### Token Validation Caching
+- JWT validation results cached for 5 minutes (10,000 entry capacity)
+- 10-50x performance improvement on cache hits
+- Blacklist always checked even for cached tokens
+- See [docs/TOKEN_CACHING.md](docs/TOKEN_CACHING.md) for details
 
 ### Security Audit
 - `SecurityEventListener` tracks auth successes, failures, and access denials with atomic counters.

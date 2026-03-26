@@ -11,13 +11,16 @@ import org.springframework.web.context.request.RequestContextHolder;
 import org.springframework.web.context.request.ServletRequestAttributes;
 
 /**
- * Aspect for logging HTTP requests and responses at controller layer.
- * Captures request details, execution time, and response status.
+ * Aspect for logging HTTP requests and responses - OPTIMIZED.
+ * Disabled by default for production performance.
  */
 @Aspect
 @Component
 @Slf4j
 public class ControllerLoggingAspect {
+
+    private static final boolean ENABLED = false; // Enable only for debugging
+    private static final long SLOW_REQUEST_MS = 2000;
 
     /**
      * Pointcut for all REST controller methods
@@ -32,10 +35,14 @@ public class ControllerLoggingAspect {
     public void controllerMethods() {}
 
     /**
-     * Log HTTP request and response details
+     * Log HTTP request and response details - OPTIMIZED
      */
     @Around("restControllerMethods() || controllerMethods()")
     public Object logHttpRequest(ProceedingJoinPoint joinPoint) throws Throwable {
+        if (!ENABLED) {
+            return joinPoint.proceed();
+        }
+        
         ServletRequestAttributes attributes =
             (ServletRequestAttributes) RequestContextHolder.getRequestAttributes();
 
@@ -61,7 +68,7 @@ public class ControllerLoggingAspect {
             log.info("HTTP RESPONSE - {} {} | Status: SUCCESS | Duration: {} ms",
                     method, uri, executionTime);
 
-            if (executionTime > 2000) {
+            if (executionTime > SLOW_REQUEST_MS) {
                 log.warn("SLOW HTTP REQUEST - {} {} took {} ms", method, uri, executionTime);
             }
 

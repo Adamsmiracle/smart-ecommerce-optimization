@@ -617,6 +617,27 @@ public class GlobalExceptionHandler extends DataFetcherExceptionResolverAdapter 
         return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body(body);
     }
 
+    @ExceptionHandler(org.springframework.web.context.request.async.AsyncRequestNotUsableException.class)
+    public ResponseEntity<Void> handleAsyncRequestNotUsable(org.springframework.web.context.request.async.AsyncRequestNotUsableException ex) {
+        // Client disconnected - no need to log or respond
+        return null;
+    }
+
+    @ExceptionHandler(org.apache.catalina.connector.ClientAbortException.class)
+    public ResponseEntity<Void> handleClientAbort(org.apache.catalina.connector.ClientAbortException ex) {
+        // Client disconnected - no need to log or respond
+        return null;
+    }
+
+    @ExceptionHandler(java.io.IOException.class)
+    public ResponseEntity<Void> handleIOException(java.io.IOException ex, HttpServletRequest req) {
+        // Only log if not a client disconnect
+        if (!ex.getMessage().contains("Connection reset") && !ex.getMessage().contains("Broken pipe")) {
+            log.warn("IO exception at {}: {}", req.getRequestURI(), ex.getMessage());
+        }
+        return null;
+    }
+
     @ExceptionHandler(Exception.class)
     public ResponseEntity<ApiResponse<ApiError>> handleAll(Exception ex, HttpServletRequest req) {
         String path = req.getRequestURI();

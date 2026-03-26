@@ -1,12 +1,14 @@
 package com.miracle.smart_ecommerce_security.domain.auth.service.impl;
 
+import com.miracle.smart_ecommerce_security.domain.auth.dto.AuthPrincipal;
 import com.miracle.smart_ecommerce_security.domain.auth.dto.AuthResponse;
 import com.miracle.smart_ecommerce_security.domain.auth.service.TokenBlacklistService;
 import com.miracle.smart_ecommerce_security.domain.auth.service.TokenActivityService;
 import com.miracle.smart_ecommerce_security.domain.auth.service.TokenService;
 import io.jsonwebtoken.*;
+import org.springframework.cache.Cache;
+import org.springframework.cache.CacheManager;
 import io.jsonwebtoken.security.Keys;
-import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.slf4j.MDC;
 import org.springframework.beans.factory.annotation.Value;
@@ -48,19 +50,22 @@ public class JwtTokenService implements TokenService {
     private final long refreshExpirationMs;
     private final TokenBlacklistService blacklistService;
     private final TokenActivityService tokenActivityService;
+    private final CacheManager cacheManager;
 
     public JwtTokenService(
             @Value("${jwt.secret}") String base64Secret,
             @Value("${jwt.expiration-ms}") long expirationMs,
             @Value("${jwt.refresh-expiration-ms:#{${jwt.expiration-ms} * 7}}") long refreshExpirationMs,
             TokenBlacklistService blacklistService,
-            TokenActivityService tokenActivityService) {
+            TokenActivityService tokenActivityService,
+            CacheManager cacheManager) {
         byte[] keyBytes = Base64.getDecoder().decode(base64Secret);
         this.signingKey = Keys.hmacShaKeyFor(keyBytes);
         this.expirationMs = expirationMs;
         this.refreshExpirationMs = refreshExpirationMs;
         this.blacklistService = blacklistService;
         this.tokenActivityService = tokenActivityService;
+        this.cacheManager = cacheManager;
         log.info("JwtTokenService initialised — algorithm: HS256, accessExpiry: {}ms, refreshExpiry: {}ms",
                 expirationMs, refreshExpirationMs);
     }
@@ -215,9 +220,26 @@ public class JwtTokenService implements TokenService {
     @Override
     public Optional<AuthPrincipal> validateToken(String token) {
         if (token == null || token.isBlank()) {
-            log.warn("JWT_VALIDATION_FAILED — Token is null or empty — CID: {}", MDC.get("correlationId"));
             return Optional.empty();
         }
+
+        // Fast cache lookup using token hash to avoid storing full token
+        String cacheKey = "validated:" + Integer.toHexString(token.hashCode());
+        Cache tokenCache = cacheManager.getCache("token");
+        
+        if (tokenCache != null) {
+            AuthPrincipal cached = tokenCache.get(cacheKey, AuthPrincipal.class);
+            if (cached != null) {
+                // Fast blacklist check - O(1) lookup
+                if (cached.jti() != null && blacklistService.isBlacklisted(cached.jti())) {
+                    tokenCache.evict(cacheKey);
+                    return Optional.empty();
+                }
+                return Optional.of(cached);
+            }
+        }
+
+        // Parse and validate token
         try {
             Claims claims = Jwts.parser()
                     .verifyWith(signingKey)
@@ -225,37 +247,34 @@ public class JwtTokenService implements TokenService {
                     .parseSignedClaims(token)
                     .getPayload();
 
-            String jti       = claims.getId();
+            String jti = claims.getId();
             String userIdStr = claims.getSubject();
-            String role      = claims.get("role", String.class);
-            String type      = claims.get("type", String.class);
+            String role = claims.get("role", String.class);
+            String type = claims.get("type", String.class);
 
-            // Reject refresh tokens being used as access tokens
+            // Reject refresh tokens used as access tokens
             if ("refresh".equals(type)) {
-                log.warn("JWT_VALIDATION_FAILED — Refresh token used as access token — JTI: {} — CID: {}",
-                        jti, MDC.get("correlationId"));
                 return Optional.empty();
             }
 
+            // Blacklist check - O(1)
             if (jti != null && blacklistService.isBlacklisted(jti)) {
-                log.warn("JWT_VALIDATION_FAILED — Token is blacklisted — JTI: {} — CID: {}",
-                        jti, MDC.get("correlationId"));
                 return Optional.empty();
             }
 
             UUID userId = UUID.fromString(userIdStr);
-            // Log at DEBUG level since validation happens on every authenticated request
-            log.debug("JWT_VALIDATION_SUCCESS — UserId: {} — Role: {} — JTI: {} — CID: {}",
-                    userId, role, jti, MDC.get("correlationId"));
+            AuthPrincipal principal = new AuthPrincipal(userId, role, jti);
 
-            return Optional.of(new AuthPrincipal(userId, role, jti));
+            // Cache the validated principal
+            if (tokenCache != null) {
+                tokenCache.put(cacheKey, principal);
+            }
+
+            return Optional.of(principal);
 
         } catch (ExpiredJwtException ex) {
-            log.warn("JWT_VALIDATION_FAILED — Token expired — Sub: {} — CID: {}",
-                    ex.getClaims().getSubject(), MDC.get("correlationId"));
             return Optional.empty();
         } catch (JwtException | IllegalArgumentException ex) {
-            log.warn("JWT_VALIDATION_FAILED — {} — CID: {}", ex.getMessage(), MDC.get("correlationId"));
             return Optional.empty();
         }
     }

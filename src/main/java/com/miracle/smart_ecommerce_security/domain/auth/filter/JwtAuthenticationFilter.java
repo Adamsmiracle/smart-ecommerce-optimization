@@ -3,10 +3,12 @@ package com.miracle.smart_ecommerce_security.domain.auth.filter;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.miracle.smart_ecommerce_security.domain.auth.service.TokenActivityService;
 import com.miracle.smart_ecommerce_security.domain.auth.service.TokenService;
+import com.miracle.smart_ecommerce_security.domain.auth.dto.AuthPrincipal;
 import jakarta.servlet.FilterChain;
 import jakarta.servlet.ServletException;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
+import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.slf4j.MDC;
 import org.springframework.http.MediaType;
@@ -39,12 +41,12 @@ import java.util.Optional;
  * {@link com.miracle.smart_ecommerce_security.config.SecurityConfig} to avoid
  * double-registration by the servlet container.
  */
+
 @Slf4j
 public class JwtAuthenticationFilter extends OncePerRequestFilter {
 
     private final TokenService tokenService;
     private final TokenActivityService tokenActivityService;
-    private final ObjectMapper objectMapper = new ObjectMapper();
 
     public JwtAuthenticationFilter(TokenService tokenService, TokenActivityService tokenActivityService) {
         this.tokenService = tokenService;
@@ -58,88 +60,56 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
 
         String header = request.getHeader("Authorization");
 
-        log.debug("JWT_FILTER — {} {} — Authorization header: {}",
-                request.getMethod(), request.getRequestURI(),
-                header != null ? (header.startsWith("Bearer ") ? "Bearer [present]" : "present but not Bearer") : "MISSING");
-
-        // No Authorization header — continue as anonymous request
-        if (header == null || !header.startsWith("Bearer")) {
+        // Fast-fail for missing or malformed headers
+        if (header == null || !header.startsWith("Bearer ")) {
             filterChain.doFilter(request, response);
             return;
         }
 
-        String token    = header.substring(7);
-        String clientIp = getClientIp(request);
-        String userAgent = request.getHeader("User-Agent");
+        String token = header.substring(7);
+        Optional<AuthPrincipal> principalOpt = tokenService.validateToken(token);
 
-        Optional<TokenService.AuthPrincipal> principal = tokenService.validateToken(token);
+        if (principalOpt.isEmpty()) {
+            // Log failure asynchronously
+            String clientIp = getClientIp(request);
+            String userAgent = request.getHeader("User-Agent");
+            String jti = tokenService.extractJti(token).orElse("UNKNOWN");
+            tokenActivityService.logTokenValidationFailure(jti, "Invalid/expired/tampered JWT", clientIp, userAgent);
+            
+            response.sendError(HttpServletResponse.SC_UNAUTHORIZED, "Invalid Token");
+            return;
+        }
 
-        if (principal.isPresent()) {
-            // ── Valid token — authenticate the request ──────────────────────
-            TokenService.AuthPrincipal auth = principal.get();
-            String role = auth.role();
-            String jti = auth.jti();
+        AuthPrincipal auth = principalOpt.get();
 
-            String grantedRole = role.toUpperCase().startsWith("ROLE_")
-                    ? role.toUpperCase()
-                    : "ROLE_" + role.toUpperCase();
-
-            UsernamePasswordAuthenticationToken authentication =
-                    new UsernamePasswordAuthenticationToken(
-                            auth.userId().toString(),
-                            null,
-                            List.of(new SimpleGrantedAuthority(grantedRole))
-                    );
+        try {
+            // Set Security Context
+            UsernamePasswordAuthenticationToken authentication = new UsernamePasswordAuthenticationToken(
+                    auth.userId().toString(),
+                    null,
+                    auth.getAuthorities()
+            );
             authentication.setDetails(new WebAuthenticationDetailsSource().buildDetails(request));
             SecurityContextHolder.getContext().setAuthentication(authentication);
 
+            // Populate MDC for logging context
             MDC.put("userId", auth.userId().toString());
-            MDC.put("userRole", role);
+            MDC.put("userRole", auth.role());
 
-            tokenActivityService.logTokenValidation(jti, auth.userId().toString(), role, clientIp, userAgent);
+            // Async logging - non-blocking
+            String clientIp = getClientIp(request);
+            String userAgent = request.getHeader("User-Agent");
+            tokenActivityService.logTokenValidation(auth.jti(), auth.userId().toString(), auth.role(), clientIp, userAgent);
 
-            log.debug("JWT_AUTH_SUCCESS — {} {} — UserId: {} — Role: {} — IP: {}",
-                    request.getMethod(), request.getRequestURI(), auth.userId(), role, clientIp);
-
-            try {
-                filterChain.doFilter(request, response);
-            } finally {
-                MDC.remove("userId");
-                MDC.remove("userRole");
-            }
-
-        } else {
-            // Extract JTI for logging if possible
-            String jti = tokenService.extractJti(token).orElse(null);
-            tokenActivityService.logTokenValidationFailure(jti, "Invalid/expired/tampered JWT",
-                    clientIp, userAgent);
-
-            log.warn("JWT_AUTH_FAILED — {} {} — Rejected invalid/expired token — IP: {} — CID: {}",
-                    request.getMethod(), request.getRequestURI(), clientIp, MDC.get("correlationId"));
-
-            response.setStatus(HttpServletResponse.SC_UNAUTHORIZED);
-            response.setContentType(MediaType.APPLICATION_JSON_VALUE);
-            response.setCharacterEncoding("UTF-8");
-
-            String body = objectMapper.writeValueAsString(Map.of(
-                    "status",     false,
-                    "statusCode", 401,
-                    "message",    "Authentication failed: token is invalid, expired, or tampered.",
-                    "path",       request.getRequestURI(),
-                    "timestamp",  java.time.Instant.now().toString()
-            ));
-            response.setContentLength(body.length());
-            response.getWriter().write(body);
-            response.getWriter().flush();
-            // Do NOT call filterChain.doFilter — stop here
+            filterChain.doFilter(request, response);
+        } finally {
+            MDC.clear();
         }
     }
 
     private String getClientIp(HttpServletRequest request) {
         String xff = request.getHeader("X-Forwarded-For");
         if (xff != null && !xff.isEmpty()) return xff.split(",")[0].trim();
-        String xri = request.getHeader("X-Real-IP");
-        if (xri != null && !xri.isEmpty()) return xri;
         return request.getRemoteAddr();
     }
 }
