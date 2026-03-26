@@ -62,22 +62,18 @@ public class ProductController {
 
     @GetMapping
     @Operation(summary = "Get all products", description = "Retrieves all products with pagination")
-    public CompletableFuture<ResponseEntity<ApiResponse<Page<ProductResponse>>>> getAllProducts(
+    public ResponseEntity<ApiResponse<Page<ProductResponse>>> getAllProducts(
             @PageableDefault(size = 10) Pageable pageable) {
-        return CompletableFuture.supplyAsync(() -> {
-            Page<ProductResponse> products = productService.getAllProducts(pageable);
-            return ResponseEntity.ok(ApiResponse.success(products));
-        }, taskExecutor);
+        Page<ProductResponse> products = productService.getAllProducts(pageable);
+        return ResponseEntity.ok(ApiResponse.success(products));
     }
 
     @GetMapping("/active")
     @Operation(summary = "Get active products", description = "Retrieves active products with pagination")
-    public CompletableFuture<ResponseEntity<ApiResponse<Page<ProductResponse>>>> getActiveProducts(
+    public ResponseEntity<ApiResponse<Page<ProductResponse>>> getActiveProducts(
             @PageableDefault(size = 10) Pageable pageable) {
-        return CompletableFuture.supplyAsync(() -> {
-            Page<ProductResponse> products = productService.getActiveProducts(pageable);
-            return ResponseEntity.ok(ApiResponse.success(products));
-        }, taskExecutor);
+        Page<ProductResponse> products = productService.getActiveProducts(pageable);
+        return ResponseEntity.ok(ApiResponse.success(products));
     }
 
     @GetMapping("/category/{categoryId}")
@@ -156,12 +152,10 @@ public class ProductController {
     @PatchMapping("/{id}/stock")
     @PreAuthorize("hasRole('ADMIN')")
     @Operation(summary = "Update stock", description = "Updates product stock quantity")
-    public CompletableFuture<ResponseEntity<ApiResponse<Void>>> updateStock(
+    public ResponseEntity<ApiResponse<Void>> updateStock(
             @Parameter(description = "Product ID") @PathVariable UUID id,
             @Parameter(description = "Quantity to add (negative to reduce)") @RequestParam int quantity) {
-        return CompletableFuture.supplyAsync(() -> {
-            productService.updateStock(id, quantity);
-            return ResponseEntity.ok(ApiResponse.success("Stock updated successfully"));
-        }, taskExecutor);
+        productService.updateStock(id, quantity);
+        return ResponseEntity.ok(ApiResponse.success("Stock updated successfully"));
     }
 }
