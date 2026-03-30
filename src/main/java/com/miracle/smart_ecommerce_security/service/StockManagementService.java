@@ -90,8 +90,15 @@ public class StockManagementService {
                     .map(UUID::fromString)
                     .toList();
 
+<<<<<<< HEAD
             List<Product> products = productRepository.findAllById(productIds);
 
+=======
+            // Optimization: Fetch all products in one database query (Time Complexity: O(1) DB calls)
+            List<Product> products = productRepository.findAllById(productIds);
+
+            // Optimization: Hash-based lookup for O(1) access time
+>>>>>>> a433c088d7f417a66d67041254951693e2d14c48
             Map<String, Product> productMap = products.stream()
                     .collect(java.util.stream.Collectors.toMap(p -> p.getId().toString(), p -> p));
 
@@ -187,7 +194,10 @@ public class StockManagementService {
      * Optimizations applied:
      * - O(1) DB calls to retrieve all required products.
      * - Saves all updated products concurrently utilizing `saveAll`, saving execution time over iterating `save`.
+<<<<<<< HEAD
      * - Evicts product cache to ensure frontend gets updated stock quantities.
+=======
+>>>>>>> a433c088d7f417a66d67041254951693e2d14c48
      */
     @Transactional
     @org.springframework.cache.annotation.CacheEvict(value = "products", allEntries = true)
@@ -257,7 +267,10 @@ public class StockManagementService {
      *
      * Optimizations applied:
      * - O(1) Fetch DB calls and `saveAll` processing.
+<<<<<<< HEAD
      * - Evicts product cache to ensure frontend gets updated stock quantities.
+=======
+>>>>>>> a433c088d7f417a66d67041254951693e2d14c48
      */
     @Transactional
     @org.springframework.cache.annotation.CacheEvict(value = "products", allEntries = true)
