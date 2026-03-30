@@ -76,21 +76,7 @@ public class OrderServiceImpl implements OrderService {
     private final PaymentMethodRepository paymentMethodRepository;
     private final StockManagementService stockManagementService; // NEW FIELD
 
-    /**
-     * Create a new order.
-     * Validates user, products, and stock before saving.
-     * Deducts stock for each product atomically within the same transaction.
-     * Rolls back entirely if any product is out of stock or not found.
-     *
-     * Transaction configuration:
-     * - propagation = REQUIRED: joins an existing transaction if present, otherwise starts a new one.
-     *   Ensures that order creation, stock reservation, and item persistence are all part of the same unit of work.
-     * - isolation = READ_COMMITTED: prevents dirty reads (reading uncommitted data from concurrent transactions).
-     *   This is the standard isolation level for e-commerce operations — it balances data consistency
-     *   with throughput and avoids phantom/non-repeatable read risks that are acceptable at this level.
-     * - rollbackFor = Exception.class: guarantees a full rollback on any checked or unchecked exception,
-     *   preventing partial orders from persisting in the database.
-     */
+
     @Override
     @Transactional(
         propagation = Propagation.REQUIRED,
@@ -105,10 +91,8 @@ public class OrderServiceImpl implements OrderService {
             throw ResourceNotFoundException.forResource("User", request.getUserId());
         }
 
-        // Generate order number for stock validation context
         String orderNumber = CustomerOrder.generateOrderNumber();
 
-        // Convert items to map for stock validation
         Map<String, Integer> orderItems = request.getItems().stream()
                 .collect(Collectors.toMap(
                     item -> item.getProductId().toString(),
@@ -120,7 +104,7 @@ public class OrderServiceImpl implements OrderService {
             stockManagementService.validateOrderStock(orderItems, orderNumber);
         } catch (InsufficientStockException e) {
             log.warn("Order creation failed due to insufficient stock - orderNumber: {}, error: {}", orderNumber, e.getMessage());
-            throw e; // Re-throw the InsufficientStockException
+            throw e;
         }
 
         // Resolve and validate all products upfront to fail fast before any DB writes
@@ -210,7 +194,7 @@ public class OrderServiceImpl implements OrderService {
      */
     @Override
     @Transactional(readOnly = true)
-    @Cacheable(value = ORDERS_CACHE, key = "'id:' + #id")
+    @Cacheable(value = ORDERS_CACHE, key = "#id")
     public OrderResponse getOrderById(UUID id) {
         log.debug("Getting order by ID: {}", id);
         CustomerOrder order = orderRepository.findByIdWithDetails(id)
@@ -218,13 +202,9 @@ public class OrderServiceImpl implements OrderService {
         return mapToResponse(order);
     }
 
-    /**
-     * Get order by order number.
-     * Result cached by order number.
-     */
     @Override
     @Transactional(readOnly = true)
-    @Cacheable(value = ORDERS_CACHE, key = "'number:' + #orderNumber")
+    @Cacheable(value = ORDERS_CACHE, key = "#orderNumber")
     public OrderResponse getOrderByOrderNumber(String orderNumber) {
         log.debug("Getting order by order number: {}", orderNumber);
         CustomerOrder order = orderRepository.findByOrderNumberWithDetails(orderNumber)
@@ -232,10 +212,7 @@ public class OrderServiceImpl implements OrderService {
         return mapToResponse(order);
     }
 
-    /**
-     * Get all orders with pagination.
-     * Cached by page + size for repeated admin listing requests.
-     */
+
     @Override
     @Transactional(readOnly = true)
     @Cacheable(value = ORDERS_CACHE,

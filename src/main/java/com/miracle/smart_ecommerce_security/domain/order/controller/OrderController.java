@@ -18,6 +18,7 @@ import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.*;
+import org.springframework.beans.factory.annotation.Qualifier;
 
 import java.util.List;
 import java.util.UUID;
@@ -36,17 +37,16 @@ public class OrderController {
     private final OrderService orderService;
     private final Executor taskExecutor;
 
-    public OrderController(OrderService orderService, @org.springframework.beans.factory.annotation.Qualifier("taskExecutor") Executor taskExecutor) {
+    public OrderController(OrderService orderService, @Qualifier("taskExecutor") Executor taskExecutor) {
         this.orderService = orderService;
         this.taskExecutor = taskExecutor;
     }
 
     @PostMapping
-    @Operation(summary = "Create a new order", description = "Places a new order (checkout)")
+    @Operation(summary = "Create a new order", description = "Creates a new order for the currently authenticated user")
     @ApiResponses(value = {
             @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "201", description = "Order created successfully"),
-            @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "400", description = "Invalid input"),
-            @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "404", description = "User or product not found")
+            @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "400", description = "Invalid request payload or insufficient stock")
     })
     public CompletableFuture<ResponseEntity<ApiResponse<OrderResponse>>> createOrder(@Valid @RequestBody CreateOrderRequest request) {
         return CompletableFuture.supplyAsync(() -> {
@@ -93,50 +93,42 @@ public class OrderController {
 
     @GetMapping("/user/{userId}")
     @Operation(summary = "Get orders by user", description = "Retrieves all orders for a specific user")
-    public CompletableFuture<ResponseEntity<ApiResponse<Page<OrderResponse>>>> getOrdersByUserId(
+    public ResponseEntity<ApiResponse<Page<OrderResponse>>> getOrdersByUserId(
             @Parameter(description = "User ID") @PathVariable UUID userId,
             @PageableDefault(size = 10) Pageable pageable) {
-        return CompletableFuture.supplyAsync(() -> {
-            Page<OrderResponse> orders = orderService.getOrdersByUserId(userId, pageable);
-            return ResponseEntity.ok(ApiResponse.success(orders));
-        }, taskExecutor);
+        Page<OrderResponse> orders = orderService.getOrdersByUserId(userId, pageable);
+        return ResponseEntity.ok(ApiResponse.success(orders));
     }
 
     @GetMapping("/status/{status}")
     @PreAuthorize("hasRole('ADMIN')")
     @Operation(summary = "Get orders by status", description = "Retrieves orders filtered by status")
-    public CompletableFuture<ResponseEntity<ApiResponse<Page<OrderResponse>>>> getOrdersByStatus(
+    public ResponseEntity<ApiResponse<Page<OrderResponse>>> getOrdersByStatus(
             @Parameter(description = "Order status (pending, confirmed, processing, shipped, delivered, cancelled)")
             @PathVariable String status,
             @PageableDefault(size = 10) Pageable pageable) {
-        return CompletableFuture.supplyAsync(() -> {
-            Page<OrderResponse> orders = orderService.getOrdersByStatus(status, pageable);
-            return ResponseEntity.ok(ApiResponse.success(orders));
-        }, taskExecutor);
+        Page<OrderResponse> orders = orderService.getOrdersByStatus(status, pageable);
+        return ResponseEntity.ok(ApiResponse.success(orders));
     }
 
     @PatchMapping("/{id}/status")
     @PreAuthorize("hasRole('ADMIN')")
     @Operation(summary = "Update order status", description = "Updates the status of an order (Admin)")
-    public CompletableFuture<ResponseEntity<ApiResponse<OrderResponse>>> updateOrderStatus(
+    public ResponseEntity<ApiResponse<OrderResponse>> updateOrderStatus(
             @Parameter(description = "Order ID") @PathVariable UUID id,
             @Parameter(description = "New status") @RequestParam String status) {
-        return CompletableFuture.supplyAsync(() -> {
-            OrderResponse order = orderService.updateOrderStatus(id, status);
-            return ResponseEntity.ok(ApiResponse.success(order, "Order status updated successfully"));
-        }, taskExecutor);
+        OrderResponse order = orderService.updateOrderStatus(id, status);
+        return ResponseEntity.ok(ApiResponse.success(order, "Order status updated successfully"));
     }
 
     @PatchMapping("/{id}/payment-status")
     @PreAuthorize("hasRole('ADMIN')")
     @Operation(summary = "Update payment status", description = "Updates the payment status of an order")
-    public CompletableFuture<ResponseEntity<ApiResponse<OrderResponse>>> updatePaymentStatus(
+    public ResponseEntity<ApiResponse<OrderResponse>> updatePaymentStatus(
             @Parameter(description = "Order ID") @PathVariable UUID id,
             @Parameter(description = "Payment status (pending, paid, failed, refunded)") @RequestParam String paymentStatus) {
-        return CompletableFuture.supplyAsync(() -> {
-            OrderResponse order = orderService.updatePaymentStatus(id, paymentStatus);
-            return ResponseEntity.ok(ApiResponse.success(order, "Payment status updated successfully"));
-        }, taskExecutor);
+        OrderResponse order = orderService.updatePaymentStatus(id, paymentStatus);
+        return ResponseEntity.ok(ApiResponse.success(order, "Payment status updated successfully"));
     }
 
     @PostMapping("/{id}/cancel")
@@ -146,12 +138,10 @@ public class OrderController {
             @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "400", description = "Order cannot be cancelled"),
             @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "404", description = "Order not found")
     })
-    public CompletableFuture<ResponseEntity<ApiResponse<OrderResponse>>> cancelOrder(
+    public ResponseEntity<ApiResponse<OrderResponse>> cancelOrder(
             @Parameter(description = "Order ID") @PathVariable UUID id) {
-        return CompletableFuture.supplyAsync(() -> {
-            OrderResponse order = orderService.cancelOrder(id);
-            return ResponseEntity.ok(ApiResponse.success(order, "Order cancelled successfully"));
-        }, taskExecutor);
+        OrderResponse order = orderService.cancelOrder(id);
+        return ResponseEntity.ok(ApiResponse.success(order, "Order cancelled successfully"));
     }
 
     @DeleteMapping("/{id}")

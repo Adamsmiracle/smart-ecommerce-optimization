@@ -46,10 +46,12 @@ public class ProductController {
             @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "400", description = "Invalid input"),
             @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "404", description = "Category not found")
     })
-    public ResponseEntity<ApiResponse<ProductResponse>> createProduct(@Valid @RequestBody CreateProductRequest request) {
-        ProductResponse product = productService.createProduct(request);
-        return ResponseEntity.status(HttpStatus.CREATED)
-                .body(ApiResponse.created(product, "Product created successfully"));
+    public CompletableFuture<ResponseEntity<ApiResponse<ProductResponse>>> createProduct(@Valid @RequestBody CreateProductRequest request) {
+        return CompletableFuture.supplyAsync(() -> {
+            ProductResponse product = productService.createProduct(request);
+            return ResponseEntity.status(HttpStatus.CREATED)
+                    .body(ApiResponse.created(product, "Product created successfully"));
+        }, taskExecutor);
     }
 
     @GetMapping("/{id}")

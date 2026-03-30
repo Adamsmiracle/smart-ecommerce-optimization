@@ -90,10 +90,8 @@ public class StockManagementService {
                     .map(UUID::fromString)
                     .toList();
 
-            // Optimization: Fetch all products in one database query (Time Complexity: O(1) DB calls)
             List<Product> products = productRepository.findAllById(productIds);
 
-            // Optimization: Hash-based lookup for O(1) access time
             Map<String, Product> productMap = products.stream()
                     .collect(java.util.stream.Collectors.toMap(p -> p.getId().toString(), p -> p));
 
@@ -189,8 +187,10 @@ public class StockManagementService {
      * Optimizations applied:
      * - O(1) DB calls to retrieve all required products.
      * - Saves all updated products concurrently utilizing `saveAll`, saving execution time over iterating `save`.
+     * - Evicts product cache to ensure frontend gets updated stock quantities.
      */
     @Transactional
+    @org.springframework.cache.annotation.CacheEvict(value = "products", allEntries = true)
     public StockReservationResult reserveStock(Map<String, Integer> orderItems, String orderId) {
         log.info("Reserving stock for order {} with {} items - CID: {}", orderId, orderItems.size(), MDC.get("correlationId"));
         
@@ -257,8 +257,10 @@ public class StockManagementService {
      *
      * Optimizations applied:
      * - O(1) Fetch DB calls and `saveAll` processing.
+     * - Evicts product cache to ensure frontend gets updated stock quantities.
      */
     @Transactional
+    @org.springframework.cache.annotation.CacheEvict(value = "products", allEntries = true)
     public void releaseReservedStock(Map<String, Integer> orderItems, String orderId) {
         log.info("Releasing reserved stock for order {} with {} items - CID: {}", orderId, orderItems.size(), MDC.get("correlationId"));
         

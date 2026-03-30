@@ -14,6 +14,8 @@ import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Sort;
 import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Service;
+import org.springframework.boot.context.event.ApplicationReadyEvent;
+import org.springframework.context.event.EventListener;
 
 import java.util.concurrent.CompletableFuture;
 
@@ -170,6 +172,7 @@ public class CacheWarmUpService {
      * Manual trigger for cache warm-up.
      * Can be called by administrators or after deployments.
      */
+    @EventListener(ApplicationReadyEvent.class) // Triggered automatically when application starts up
     public CompletableFuture<Void> performFullWarmUp() {
         log.info("Starting manual full cache warm-up");
 
